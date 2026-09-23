@@ -31,3 +31,7 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# SQLite runtime journal files
+database/*.db-shm
+database/*.db-wal
