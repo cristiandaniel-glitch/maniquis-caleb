@@ -536,8 +536,13 @@ main {
 .hero-title-script-gold {
     font-family: var(--font-serif-lux);
     color: var(--accent-gold);
-    font-style: italic;
+    font-style: normal;
     font-weight: 400;
+    /* Pinyon Script es una caligrafía delicada: a igual font-size se ve más
+       chica y más fina que una serif en itálica, así que se compensa aparte
+       en vez de heredar el tamaño del título. */
+    font-size: 1.35em;
+    line-height: 1;
     text-shadow: var(--glow-gold);
 }
 
@@ -754,12 +759,12 @@ main {
 
 .scrolly-hotspot-index {
     display: block;
-    font-family: var(--font-heading);
-    font-size: 0.78rem;
-    font-weight: 800;
-    letter-spacing: 1.5px;
+    font-family: var(--font-handwritten);
+    font-size: 1.3rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
     color: var(--accent-gold);
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.15rem;
 }
 
 .scrolly-hotspot-text h3 {
