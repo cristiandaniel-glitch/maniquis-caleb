@@ -524,13 +524,13 @@ main {
 }
 
 .hero-title-cinematic {
-    font-family: var(--font-heading);
-    font-size: clamp(2.3rem, 5vw, 4rem);
-    font-weight: 800;
-    line-height: 1.12;
+    font-family: var(--font-serif-lux);
+    font-size: clamp(2.5rem, 5.5vw, 4.3rem);
+    font-weight: 400;
+    line-height: 1.22;
     color: #ffffff;
     margin-bottom: 1.35rem;
-    letter-spacing: -0.6px;
+    letter-spacing: 0;
 }
 
 .hero-title-script-gold {
@@ -538,11 +538,8 @@ main {
     color: var(--accent-gold);
     font-style: normal;
     font-weight: 400;
-    /* Pinyon Script es una caligrafía delicada: a igual font-size se ve más
-       chica y más fina que una serif en itálica, así que se compensa aparte
-       en vez de heredar el tamaño del título. */
-    font-size: 1.35em;
-    line-height: 1;
+    /* Ya hereda Pacifico y el tamaño del título; este bloque solo aporta el
+       color/brillo dorado que distingue la palabra de acento. */
     text-shadow: var(--glow-gold);
 }
 
@@ -768,9 +765,9 @@ main {
 }
 
 .scrolly-hotspot-text h3 {
-    font-family: var(--font-heading);
-    font-size: clamp(1.1rem, 2vw, 1.4rem);
-    font-weight: 800;
+    font-family: var(--font-serif-lux);
+    font-size: clamp(1.3rem, 2.4vw, 1.7rem);
+    font-weight: 400;
     color: #ffffff;
     margin-bottom: 0.4rem;
 }
@@ -788,9 +785,9 @@ main {
 }
 
 .scrolly-conclusion h3 {
-    font-family: var(--font-heading);
-    font-size: clamp(1.3rem, 2.5vw, 1.8rem);
-    font-weight: 800;
+    font-family: var(--font-serif-lux);
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    font-weight: 400;
     color: #ffffff;
     margin-bottom: 0.5rem;
 }
@@ -933,13 +930,13 @@ main {
 }
 
 .section-title-epic {
-    font-family: var(--font-heading);
-    font-size: clamp(1.9rem, 4vw, 2.9rem);
-    font-weight: 800;
+    font-family: var(--font-serif-lux);
+    font-size: clamp(2.1rem, 4.4vw, 3.2rem);
+    font-weight: 400;
     color: #ffffff;
-    line-height: 1.2;
+    line-height: 1.3;
     margin-bottom: 1rem;
-    letter-spacing: -0.4px;
+    letter-spacing: 0;
 }
 
 .gold-text {
