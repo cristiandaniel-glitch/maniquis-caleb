@@ -413,16 +413,19 @@ const Hero3D = {
         const activeBtn = document.getElementById(`btn-model-${key}`);
         if (activeBtn) activeBtn.classList.add('active');
 
-        const img = document.getElementById('hero-interactive-mannequin-img');
-        if (img) {
-            img.style.transform = 'scale(0.85) rotateY(20deg)';
-            img.style.opacity = '0';
-            setTimeout(() => {
-                img.src = data.image;
-                img.style.transform = 'scale(1) rotateY(0deg)';
-                img.style.opacity = '1';
-            }, 180);
-        }
+        // El maniquí del hero está partido en 3 franjas (ver .mannequin-slice
+        // en main.css); cada franja ya usa su propio transform para recortar
+        // su tercio de la imagen, así que el cambio de modelo solo cruza en
+        // opacidad la caja completa y reemplaza el src de las 3 <img>.
+        const stage = document.getElementById('mannequin-explode-stage');
+        const slices = document.querySelectorAll('#mannequin-explode-stage .slice-img');
+        if (!stage || !slices.length) return;
+
+        stage.style.opacity = '0';
+        setTimeout(() => {
+            slices.forEach(img => { img.src = data.image; });
+            stage.style.opacity = '1';
+        }, 180);
     }
 };
 

@@ -323,31 +323,99 @@ main {
     box-shadow: var(--shadow-lg);
 }
 
-/* Video de Fondo Atmosférico Showroom */
-.hero-video-backdrop-container {
+/* Fondo ambiental estático — nada que tiemble ni compita con el maniquí,
+   que es la pieza que se mueve en esta versión. */
+.hero-ambient-backdrop {
     position: absolute;
     inset: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
     z-index: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse 60% 55% at 78% 38%, rgba(223, 199, 155, 0.14) 0%, transparent 65%),
+        radial-gradient(ellipse 70% 60% at 15% 75%, rgba(223, 199, 155, 0.08) 0%, transparent 70%),
+        var(--bg-main);
+}
+
+/* ==============================================================================
+   4.B MANIQUÍ QUE SE "ABRE" EN 3 PARTES (SCROLLYTELLING)
+   ============================================================================== */
+/* Cada franja recorta un tercio de LA MISMA foto (misma técnica que un
+   filmstrip): la <img> mide 300% del alto de su franja y se desplaza con
+   transform (porcentaje relativo a su propio alto, no al de un ancestro),
+   así que no depende de medir píxeles en JS ni de tener 3 fotos separadas.
+   hero-scrolly.js separa las franjas (traslada .mannequin-slice) en vez de
+   tocar este recorte. */
+.mannequin-explode-stage {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+    transition: opacity 0.2s var(--ease-out-lux);
+}
+
+.mannequin-slice {
+    position: relative;
+    height: 33.3333%;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.slice-img {
+    display: block;
+    width: 100%;
+    height: 300%;
+    object-fit: cover;
+    object-position: center top;
+    transform: translateY(0%);
+    filter: drop-shadow(0 16px 32px rgba(0, 0, 0, 0.6));
+    user-select: none;
     pointer-events: none;
 }
 
-.hero-video-element {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    opacity: 1;
-    filter: saturate(1.15) contrast(1.05);
+.slice-img-torso {
+    transform: translateY(-33.3333%);
 }
 
-.hero-video-overlay-gradient {
-    position: absolute;
-    inset: 0;
-    /* Velo mínimo, solo para que el texto/nav respiren — el video se ve
-       nítido y brillante en el resto del cuadro, no lavado en negro. */
-    background: linear-gradient(180deg, rgba(6, 6, 8, 0.5) 0%, rgba(6, 6, 8, 0.05) 22%, rgba(6, 6, 8, 0.05) 65%, rgba(6, 6, 8, 0.6) 100%);
+.slice-img-base {
+    transform: translateY(-66.6666%);
+}
+
+/* Tarjetas de texto ancladas a cada franja (columna izquierda, alineadas
+   con la altura de cabeza/torso/base) en vez de una sola tarjeta centrada
+   tapando todo. */
+.scrolly-hotspot-side {
+    left: clamp(1.25rem, 4vw, 3rem) !important;
+    right: auto !important;
+    max-width: 380px !important;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    padding: 1.25rem 1.5rem;
+}
+
+#scrolly-hotspot-1.scrolly-hotspot-side { top: 16%; }
+#scrolly-hotspot-2.scrolly-hotspot-side { top: 43%; }
+#scrolly-hotspot-3.scrolly-hotspot-side { top: 70%; }
+
+@media (max-width: 900px) {
+    /* left+right+margin:auto en vez de translateX(-50%): GSAP escribe su
+       propio `transform` sobre estos elementos (scale, la animación de
+       entrada/salida) y pisaría cualquier transform puesto por CSS. */
+    .scrolly-hotspot-side {
+        left: 1.25rem !important;
+        right: 1.25rem !important;
+        max-width: 420px;
+        margin: 0 auto;
+        align-items: center;
+        text-align: center;
+    }
+
+    #scrolly-hotspot-1.scrolly-hotspot-side { top: 8%; }
+    #scrolly-hotspot-2.scrolly-hotspot-side { top: 38%; }
+    #scrolly-hotspot-3.scrolly-hotspot-side { top: 68%; }
 }
 
 /* Hero de Inicio a pantalla completa (borde a borde, sin tarjeta oscura
@@ -372,6 +440,17 @@ main {
     align-items: center;
 }
 
+/* El fondo (.hero-fullbleed) va borde a borde, pero el contenido legible
+   (título/CTAs/maniquí) se mantiene en el mismo ancho de lectura que el
+   resto del sitio — si no, la grilla de 2 columnas queda sin un ancho de
+   referencia claro dentro de un padre flex y se desarma. */
+.hero-fullbleed .hero-container-layout {
+    width: 100%;
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 0 clamp(1.25rem, 3.5vw, 2.5rem);
+}
+
 .hero-fullbleed .hero-left-content {
     background: rgba(6, 6, 8, 0.55);
     backdrop-filter: blur(22px) saturate(160%);
@@ -380,6 +459,38 @@ main {
     border-radius: var(--radius-lg);
     padding: clamp(1.75rem, 3vw, 2.75rem);
     box-shadow: var(--glow-card);
+}
+
+/* Ahora que el maniquí vive en su propia capa (.hero-mannequin-stage-fixed,
+   más abajo) esta grilla solo tiene la columna de texto — se angosta para
+   que quede como un panel a la izquierda, no estirado a todo el ancho. */
+.hero-container-layout-text-only {
+    grid-template-columns: 1fr;
+    max-width: 620px;
+}
+
+/* Maniquí anclado al VIEWPORT visible (top:0 + height:100dvh), no al alto
+   natural del contenido de texto — es la misma técnica que
+   .hero-scrolly-overlay: durante el pin, la sección queda fija en pantalla,
+   así que esto siempre coincide con lo que el usuario ve, sin importar si
+   el texto de al lado es más alto que una pantalla. */
+.hero-mannequin-stage-fixed {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 52%;
+    height: 100dvh;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    perspective: 1200px;
+}
+
+@media (max-width: 1120px) {
+    .hero-mannequin-stage-fixed {
+        left: 0;
+    }
 }
 
 .hero-container-layout {
@@ -690,31 +801,6 @@ main {
     .scrolly-hotspot {
         flex-direction: column;
         text-align: center;
-    }
-}
-
-/* Movimiento reducido: hero-scrolly.js no arma el timeline (ver init() ahí),
-   así que estas tarjetas jamás se activarían vía JS. En vez de dejarlas
-   ocultas para siempre, se muestran apiladas en flujo normal debajo del
-   hero — el usuario sigue viendo el contenido, solo que sin el scroll
-   animado ni el pin. */
-@media (prefers-reduced-motion: reduce) {
-    .hero-scrolly-overlay {
-        position: static;
-        height: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 1.25rem;
-        padding: 2rem clamp(1.5rem, 4vw, 3.5rem) 0.5rem;
-        pointer-events: auto;
-    }
-
-    .scrolly-hotspot,
-    .scrolly-conclusion {
-        position: static;
-        opacity: 1;
-        pointer-events: auto;
-        max-width: 100%;
     }
 }
 
