@@ -548,6 +548,111 @@ main {
     box-shadow: 0 2px 10px rgba(223, 199, 155, 0.4);
 }
 
+/* Capa de Scrollytelling del Hero: pinned por hero-scrolly.js mientras el
+   usuario baja. Las 4 tarjetas comparten el mismo lugar (position: absolute,
+   inset: 0) y se turnan vía opacity/scale — así no hay que resolver 4
+   posiciones distintas por breakpoint. */
+.hero-scrolly-overlay {
+    /* Alto fijo al viewport (no al alto natural del wrapper, que en móvil es
+       más alto que la pantalla por el contenido apilado a 1 columna). Durante
+       el pin, la sección se fija en pantalla, así que top:0 + 100dvh siempre
+       coincide con lo que el usuario realmente ve. */
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100dvh;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(1.5rem, 4vw, 3.5rem);
+    pointer-events: none;
+}
+
+.scrolly-hotspot,
+.scrolly-conclusion {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: clamp(1.25rem, 3vw, 2.5rem);
+    max-width: min(640px, 100%);
+    padding: 1.5rem clamp(1.5rem, 3vw, 2.25rem);
+    background: var(--bg-glass-card);
+    border: 1px solid var(--border-gold);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(28px) saturate(160%);
+    -webkit-backdrop-filter: blur(28px) saturate(160%);
+    box-shadow: var(--glow-card);
+    /* Estado oculto por defecto en CSS puro: evita FOUC antes de que
+       hero-scrolly.js corra, y es el fallback correcto cuando el usuario
+       prefiere movimiento reducido (el JS no arma el timeline y estas
+       tarjetas simplemente nunca aparecen; el hero queda estático y legible). */
+    opacity: 0;
+    pointer-events: none;
+}
+
+.scrolly-hotspot-img {
+    width: clamp(64px, 9vw, 96px);
+    height: clamp(64px, 9vw, 96px);
+    object-fit: contain;
+    object-position: center top;
+    flex-shrink: 0;
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.9));
+}
+
+.scrolly-hotspot-index {
+    display: block;
+    font-family: var(--font-heading);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: var(--accent-gold);
+    margin-bottom: 0.35rem;
+}
+
+.scrolly-hotspot-text h3 {
+    font-family: var(--font-heading);
+    font-size: clamp(1.1rem, 2vw, 1.4rem);
+    font-weight: 800;
+    color: #ffffff;
+    margin-bottom: 0.4rem;
+}
+
+.scrolly-hotspot-text p {
+    font-size: 0.92rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+}
+
+.scrolly-conclusion {
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+}
+
+.scrolly-conclusion h3 {
+    font-family: var(--font-heading);
+    font-size: clamp(1.3rem, 2.5vw, 1.8rem);
+    font-weight: 800;
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+}
+
+.scrolly-conclusion p {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+    max-width: 46ch;
+}
+
+@media (max-width: 640px) {
+    .scrolly-hotspot {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+
 /* ==============================================================================
    5. BENTO GRID ARCHITECTURAL (SECCIÓN NOSOTROS)
    ============================================================================== */
