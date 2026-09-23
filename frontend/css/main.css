@@ -39,7 +39,8 @@ p {
 }
 
 .modal-overlay p,
-#view-reclamos p {
+#view-reclamos p,
+.site-main-footer p {
     font-family: var(--font-primary);
 }
 
@@ -539,12 +540,12 @@ main {
 
 .hero-title-cinematic {
     font-family: var(--font-serif-lux);
-    font-size: clamp(2.6rem, 5.8vw, 4.5rem);
-    font-weight: 400;
-    line-height: 1.2;
+    font-size: clamp(2.1rem, 4.8vw, 3.7rem);
+    font-weight: 700;
+    line-height: 1.35;
     color: #ffffff;
     margin-bottom: 1.35rem;
-    letter-spacing: 0;
+    letter-spacing: 1px;
     text-transform: uppercase;
 }
 
@@ -552,7 +553,7 @@ main {
     font-family: var(--font-serif-lux);
     color: var(--accent-gold);
     font-style: normal;
-    font-weight: 400;
+    font-weight: 700;
     /* Berkshire Swash es de un solo grosor (no tiene variante bold real);
        este bloque solo aporta el color/brillo dorado del acento. */
     text-shadow: var(--glow-gold);
@@ -781,10 +782,11 @@ main {
 
 .scrolly-hotspot-text h3 {
     font-family: var(--font-serif-lux);
-    font-size: clamp(1.4rem, 2.6vw, 1.8rem);
-    font-weight: 400;
+    font-size: clamp(1.1rem, 2vw, 1.4rem);
+    font-weight: 700;
     color: #ffffff;
     margin-bottom: 0.4rem;
+    letter-spacing: 0.5px;
     text-transform: uppercase;
 }
 
@@ -802,10 +804,11 @@ main {
 
 .scrolly-conclusion h3 {
     font-family: var(--font-serif-lux);
-    font-size: clamp(1.7rem, 3.2vw, 2.4rem);
-    font-weight: 400;
+    font-size: clamp(1.4rem, 2.6vw, 1.9rem);
+    font-weight: 700;
     color: #ffffff;
     margin-bottom: 0.5rem;
+    letter-spacing: 0.5px;
     text-transform: uppercase;
 }
 
@@ -948,10 +951,11 @@ main {
 
 .section-title-epic {
     font-family: var(--font-serif-lux);
-    font-size: clamp(2.2rem, 4.6vw, 3.4rem);
-    font-weight: 400;
+    font-size: clamp(1.8rem, 3.8vw, 2.8rem);
+    font-weight: 700;
     color: #ffffff;
-    line-height: 1.3;
+    line-height: 1.4;
+    letter-spacing: 1px;
     margin-bottom: 1rem;
     text-transform: uppercase;
     letter-spacing: 0;
