@@ -531,6 +531,7 @@ main {
     color: #ffffff;
     margin-bottom: 1.35rem;
     letter-spacing: 0;
+    text-transform: uppercase;
 }
 
 .hero-title-script-gold {
@@ -770,6 +771,7 @@ main {
     font-weight: 400;
     color: #ffffff;
     margin-bottom: 0.4rem;
+    text-transform: uppercase;
 }
 
 .scrolly-hotspot-text p {
@@ -790,6 +792,7 @@ main {
     font-weight: 400;
     color: #ffffff;
     margin-bottom: 0.5rem;
+    text-transform: uppercase;
 }
 
 .scrolly-conclusion p {
@@ -936,6 +939,7 @@ main {
     color: #ffffff;
     line-height: 1.3;
     margin-bottom: 1rem;
+    text-transform: uppercase;
     letter-spacing: 0;
 }
 
