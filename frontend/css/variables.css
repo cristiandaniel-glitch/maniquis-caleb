@@ -65,9 +65,9 @@
     --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     --font-display: 'Syne', 'Plus Jakarta Sans', sans-serif;
     --font-heading: 'Syne', 'Outfit', sans-serif;
-    --font-serif-lux: 'Pacifico', 'Brush Script MT', cursive;
-    --font-script: 'Pacifico', 'Brush Script MT', cursive;
-    --font-handwritten: 'Shantell Sans', 'Segoe Script', cursive;
+    --font-serif-lux: 'Fraunces', Georgia, serif;
+    --font-script: 'Fraunces', Georgia, serif;
+    --font-handwritten: 'Yellowtail', 'Segoe Script', cursive;
 
     /* ==========================================================================
        3. TRANSICIONES & FÍSICA DE INTERACCIÓN
