@@ -29,6 +29,20 @@ body {
     box-sizing: border-box;
 }
 
+/* Texto de contenido (descripciones, bajadas) en cursiva por defecto — pero
+   NO dentro de un modal (formularios, panel admin, Términos/Privacidad/
+   Envíos) ni en la vista de Reclamaciones: ahí se necesita texto legible y
+   sin ambigüedad, es un requisito legal, no solo de gusto. .btn/.nav-link/
+   inputs no son <p>, así que no los toca esta regla. */
+p {
+    font-family: var(--font-handwritten);
+}
+
+.modal-overlay p,
+#view-reclamos p {
+    font-family: var(--font-primary);
+}
+
 main {
     padding-top: calc(var(--header-height-desktop) + 1.5rem);
     min-height: calc(100vh - 200px);
@@ -525,10 +539,9 @@ main {
 
 .hero-title-cinematic {
     font-family: var(--font-serif-lux);
-    font-optical-sizing: auto;
-    font-size: clamp(2.5rem, 5.5vw, 4.3rem);
-    font-weight: 900;
-    line-height: 1.15;
+    font-size: clamp(2.6rem, 5.8vw, 4.5rem);
+    font-weight: 400;
+    line-height: 1.2;
     color: #ffffff;
     margin-bottom: 1.35rem;
     letter-spacing: 0;
@@ -538,10 +551,10 @@ main {
 .hero-title-script-gold {
     font-family: var(--font-serif-lux);
     color: var(--accent-gold);
-    font-style: italic;
-    font-weight: 900;
-    /* Ya hereda Fraunces y el tamaño del título; este bloque solo aporta el
-       color/brillo dorado que distingue la palabra de acento. */
+    font-style: normal;
+    font-weight: 400;
+    /* Berkshire Swash es de un solo grosor (no tiene variante bold real);
+       este bloque solo aporta el color/brillo dorado del acento. */
     text-shadow: var(--glow-gold);
 }
 
@@ -768,9 +781,8 @@ main {
 
 .scrolly-hotspot-text h3 {
     font-family: var(--font-serif-lux);
-    font-optical-sizing: auto;
-    font-size: clamp(1.3rem, 2.4vw, 1.7rem);
-    font-weight: 900;
+    font-size: clamp(1.4rem, 2.6vw, 1.8rem);
+    font-weight: 400;
     color: #ffffff;
     margin-bottom: 0.4rem;
     text-transform: uppercase;
@@ -790,9 +802,8 @@ main {
 
 .scrolly-conclusion h3 {
     font-family: var(--font-serif-lux);
-    font-optical-sizing: auto;
-    font-size: clamp(1.6rem, 3vw, 2.2rem);
-    font-weight: 900;
+    font-size: clamp(1.7rem, 3.2vw, 2.4rem);
+    font-weight: 400;
     color: #ffffff;
     margin-bottom: 0.5rem;
     text-transform: uppercase;
@@ -937,11 +948,10 @@ main {
 
 .section-title-epic {
     font-family: var(--font-serif-lux);
-    font-optical-sizing: auto;
-    font-size: clamp(2.1rem, 4.4vw, 3.2rem);
-    font-weight: 900;
+    font-size: clamp(2.2rem, 4.6vw, 3.4rem);
+    font-weight: 400;
     color: #ffffff;
-    line-height: 1.25;
+    line-height: 1.3;
     margin-bottom: 1rem;
     text-transform: uppercase;
     letter-spacing: 0;
