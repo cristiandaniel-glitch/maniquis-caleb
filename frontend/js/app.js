@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 5. Inicializar Módulos del Sistema
     Hero3D.init();
+    CatalogHero.init();
     await Catalog.init();
     Claims.init();
     Admin.init();

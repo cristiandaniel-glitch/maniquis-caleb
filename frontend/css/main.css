@@ -653,6 +653,31 @@ main {
     }
 }
 
+/* Movimiento reducido: hero-scrolly.js no arma el timeline (ver init() ahí),
+   así que estas tarjetas jamás se activarían vía JS. En vez de dejarlas
+   ocultas para siempre, se muestran apiladas en flujo normal debajo del
+   hero — el usuario sigue viendo el contenido, solo que sin el scroll
+   animado ni el pin. */
+@media (prefers-reduced-motion: reduce) {
+    .hero-scrolly-overlay {
+        position: static;
+        height: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        padding: 2rem clamp(1.5rem, 4vw, 3.5rem) 0.5rem;
+        pointer-events: auto;
+    }
+
+    .scrolly-hotspot,
+    .scrolly-conclusion {
+        position: static;
+        opacity: 1;
+        pointer-events: auto;
+        max-width: 100%;
+    }
+}
+
 /* ==============================================================================
    5. BENTO GRID ARCHITECTURAL (SECCIÓN NOSOTROS)
    ============================================================================== */

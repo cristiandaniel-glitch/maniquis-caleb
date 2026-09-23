@@ -102,12 +102,20 @@ const UI = {
     navigateView(viewName) {
         const validRoutes = ['inicio', 'catalogo', 'nosotros', 'colgantes', 'contacto', 'resenas', 'reclamos'];
         const targetView = validRoutes.includes(viewName) ? viewName : 'inicio';
+        const previousView = document.body.getAttribute('data-view');
 
         const views = document.querySelectorAll('.page-view');
         const navLinks = document.querySelectorAll('.nav-link');
         const targetEl = document.getElementById(`view-${targetView}`);
 
         if (!targetEl) return;
+
+        // El pin del hero scrollytelling reserva espacio en el documento (ver
+        // hero-scrolly.js). Si no se destruye al salir de Inicio, ese espacio
+        // vacío empuja la vista nueva fuera de pantalla.
+        if (typeof HeroScrolly !== 'undefined' && previousView === 'inicio' && targetView !== 'inicio') {
+            HeroScrolly.teardown();
+        }
 
         views.forEach(v => v.classList.remove('active'));
         navLinks.forEach(l => {
@@ -123,6 +131,10 @@ const UI = {
         window.history.replaceState(null, null, `#${targetView}`);
 
         window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+
+        if (typeof HeroScrolly !== 'undefined' && targetView === 'inicio' && previousView !== 'inicio') {
+            HeroScrolly.rebuild();
+        }
 
         if (targetView === 'catalogo') {
             if (typeof Catalog !== 'undefined' && (!Catalog.products || Catalog.products.length === 0)) {

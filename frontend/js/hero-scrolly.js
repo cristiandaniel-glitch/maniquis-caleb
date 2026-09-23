@@ -5,8 +5,13 @@
  * Ancla (pin) el hero mientras el usuario baja: el texto inicial se desvanece,
  * el video de showroom hace un acercamiento cinemático continuo y tres tarjetas
  * (fibra, base, envíos) van apareciendo una a la vez, hasta cerrar con un CTA
- * al catálogo. Usa solo transform/opacity (GPU) y se desactiva por completo si
- * el usuario prefiere movimiento reducido.
+ * al catálogo. Usa solo transform/opacity (GPU).
+ *
+ * Decisión del dueño del sitio: se muestra siempre, incluso con
+ * "prefers-reduced-motion" activado — no se prioriza el impacto visual de la
+ * página de ventas por sobre esa preferencia. El CSS (main.css, bloque
+ * "@media (prefers-reduced-motion: reduce)" sobre .hero-scrolly-overlay)
+ * queda igual como red de seguridad si GSAP no llega a cargar.
  */
 
 const HeroScrolly = {
@@ -16,12 +21,6 @@ const HeroScrolly = {
         if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') {
             console.warn('[HeroScrolly] GSAP o ScrollTrigger no cargados. Reintentando...');
             setTimeout(() => this.init(), 100);
-            return;
-        }
-
-        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        if (prefersReducedMotion) {
-            // Sin scroll-hijack: el hero queda estático y siempre legible.
             return;
         }
 
@@ -93,6 +92,30 @@ const HeroScrolly = {
         }, 0.88);
 
         this.scrollTriggerInstance = tl.scrollTrigger;
+    },
+
+    /**
+     * Esta es una SPA de vistas por display:none, no de secciones apiladas:
+     * el pin de GSAP envuelve #view-inicio en un "pin-spacer" con altura fija
+     * (la distancia de scroll reservada, ~220% del viewport). Si el usuario
+     * navega a otra vista, esa sección pasa a display:none pero el spacer
+     * (que tiene su propio alto inline, independiente del hijo) sigue
+     * ocupando ese espacio vacío ANTES de la vista nueva, empujándola fuera
+     * de pantalla. Por eso hay que matar el pin al salir de Inicio y
+     * reconstruirlo al volver — ver la llamada en UI.navigateView().
+     */
+    teardown() {
+        if (this.scrollTriggerInstance) {
+            this.scrollTriggerInstance.kill();
+            this.scrollTriggerInstance = null;
+        }
+    },
+
+    rebuild() {
+        this.teardown();
+        if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
+        this.initScrollytelling();
+        ScrollTrigger.refresh();
     }
 };
 
