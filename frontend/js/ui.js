@@ -200,6 +200,65 @@ const UI = {
         this.initFloatingNavbar();
     },
 
+    /**
+     * Mide la altura real del header flotante (logo + nav + acciones, que puede
+     * variar por breakpoint o al cargar las fuentes web) y la escribe en la
+     * variable --header-height-desktop para que `main { padding-top }` nunca
+     * quede desincronizado ni el contenido se tape debajo del header.
+     */
+    syncHeaderHeight() {
+        const header = document.getElementById('floating-island-wrapper');
+        if (!header) return;
+
+        const rect = header.getBoundingClientRect();
+        const totalHeight = Math.ceil(rect.top + rect.height);
+        document.documentElement.style.setProperty('--header-height-desktop', `${totalHeight}px`);
+
+        if (!this._headerResizeBound) {
+            this._headerResizeBound = true;
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => this.syncHeaderHeight(), 150);
+            }, { passive: true });
+        }
+    },
+
+    /**
+     * Menú móvil/tablet: el pill de navegación no entra completo bajo ~1120px
+     * (ver .nav-toggle-btn en main.css), así que se colapsa en un desplegable
+     * accionado por un botón hamburguesa.
+     */
+    toggleMobileNav(forceOpen) {
+        const menu = document.getElementById('nav-menu');
+        const btn = document.getElementById('nav-toggle-btn');
+        if (!menu || !btn) return;
+
+        const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : !menu.classList.contains('is-open');
+        menu.classList.toggle('is-open', shouldOpen);
+        btn.setAttribute('aria-expanded', String(shouldOpen));
+    },
+
+    initMobileNav() {
+        const menu = document.getElementById('nav-menu');
+        const toggleBtn = document.getElementById('nav-toggle-btn');
+        if (!menu || !toggleBtn) return;
+
+        menu.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => this.toggleMobileNav(false));
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!menu.classList.contains('is-open')) return;
+            if (menu.contains(e.target) || toggleBtn.contains(e.target)) return;
+            this.toggleMobileNav(false);
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') this.toggleMobileNav(false);
+        });
+    },
+
     showToast(message, type = 'info', title = '', duration = 4000) {
         let container = document.getElementById('toast-container');
         if (!container) {
