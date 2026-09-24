@@ -29,20 +29,13 @@ body {
     box-sizing: border-box;
 }
 
-/* Texto de contenido (descripciones, bajadas) en cursiva por defecto — pero
-   NO dentro de un modal (formularios, panel admin, Términos/Privacidad/
-   Envíos) ni en la vista de Reclamaciones: ahí se necesita texto legible y
-   sin ambigüedad, es un requisito legal, no solo de gusto. .btn/.nav-link/
-   inputs no son <p>, así que no los toca esta regla. */
-p {
-    font-family: var(--font-handwritten);
-}
-
-.modal-overlay p,
-#view-reclamos p,
-.site-main-footer p {
-    font-family: var(--font-primary);
-}
+/* Sistema tipográfico disciplinado (3 niveles, no una fuente decorativa
+   distinta por sección): Syne para toda la estructura (títulos, texto de
+   párrafo hereda de <body>), UNA sola fuente caligráfica reservada para el
+   acento de marca (la palabra dorada del hero), y Yellowtail solo en textos
+   cortos tipo bajada/etiqueta — nunca en párrafos completos. Una marca
+   premium real se apoya en tipografía limpia y confiada; llenar todo de
+   cursiva es lo que la hacía ver genérica, no al revés. */
 
 main {
     padding-top: calc(var(--header-height-desktop) + 1.5rem);
@@ -539,14 +532,14 @@ main {
 }
 
 .hero-title-cinematic {
-    font-family: var(--font-serif-lux);
-    font-size: clamp(2.1rem, 4.8vw, 3.7rem);
-    font-weight: 700;
-    line-height: 1.35;
+    font-family: var(--font-heading);
+    font-size: clamp(2.3rem, 5vw, 4rem);
+    font-weight: 800;
+    line-height: 1.12;
     color: #ffffff;
     margin-bottom: 1.35rem;
-    letter-spacing: 1px;
-    text-transform: uppercase;
+    letter-spacing: -0.6px;
+    text-transform: none;
 }
 
 .hero-title-script-gold {
@@ -554,8 +547,9 @@ main {
     color: var(--accent-gold);
     font-style: normal;
     font-weight: 700;
-    /* Berkshire Swash es de un solo grosor (no tiene variante bold real);
-       este bloque solo aporta el color/brillo dorado del acento. */
+    text-transform: none;
+    /* Único momento caligráfico del sitio: el resto del título va en la
+       misma tipografía de estructura (Syne) que el resto del sitio. */
     text-shadow: var(--glow-gold);
 }
 
@@ -781,13 +775,11 @@ main {
 }
 
 .scrolly-hotspot-text h3 {
-    font-family: var(--font-serif-lux);
+    font-family: var(--font-heading);
     font-size: clamp(1.1rem, 2vw, 1.4rem);
-    font-weight: 700;
+    font-weight: 800;
     color: #ffffff;
     margin-bottom: 0.4rem;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
 }
 
 .scrolly-hotspot-text p {
@@ -803,13 +795,11 @@ main {
 }
 
 .scrolly-conclusion h3 {
-    font-family: var(--font-serif-lux);
-    font-size: clamp(1.4rem, 2.6vw, 1.9rem);
-    font-weight: 700;
+    font-family: var(--font-heading);
+    font-size: clamp(1.3rem, 2.5vw, 1.8rem);
+    font-weight: 800;
     color: #ffffff;
     margin-bottom: 0.5rem;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
 }
 
 .scrolly-conclusion p {
@@ -950,15 +940,13 @@ main {
 }
 
 .section-title-epic {
-    font-family: var(--font-serif-lux);
-    font-size: clamp(1.8rem, 3.8vw, 2.8rem);
-    font-weight: 700;
+    font-family: var(--font-heading);
+    font-size: clamp(1.9rem, 4vw, 2.9rem);
+    font-weight: 800;
     color: #ffffff;
-    line-height: 1.4;
-    letter-spacing: 1px;
+    line-height: 1.2;
     margin-bottom: 1rem;
-    text-transform: uppercase;
-    letter-spacing: 0;
+    letter-spacing: -0.4px;
 }
 
 .gold-text {
