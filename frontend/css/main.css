@@ -432,13 +432,15 @@ main {
 }
 
 .hero-fullbleed .hero-left-content {
-    background: rgba(6, 6, 8, 0.55);
+    /* Azul-noche en vez de negro puro: acompaña el cielo del video de
+       fondo en lugar de plantar un rectángulo negro encima. */
+    background: rgba(9, 16, 32, 0.5);
     backdrop-filter: blur(22px) saturate(160%);
     -webkit-backdrop-filter: blur(22px) saturate(160%);
-    border: 1px solid var(--border-subtle);
+    border: 1px solid rgba(180, 210, 255, 0.14);
     border-radius: var(--radius-lg);
     padding: clamp(1.75rem, 3vw, 2.75rem);
-    box-shadow: var(--glow-card);
+    box-shadow: 0 24px 60px -12px rgba(4, 8, 18, 0.55);
 }
 
 /* Ahora que el maniquí vive en su propia capa (.hero-mannequin-stage-fixed,
@@ -454,22 +456,62 @@ main {
    .hero-scrolly-overlay: durante el pin, la sección queda fija en pantalla,
    así que esto siempre coincide con lo que el usuario ve, sin importar si
    el texto de al lado es más alto que una pantalla. */
+/* Ahora es el video de fondo a pantalla completa (antes era la columna
+   derecha con el maniquí en 3 partes) — por eso ya no se limita al 52%. */
 .hero-mannequin-stage-fixed {
     position: absolute;
-    top: 0;
-    right: 0;
-    left: 52%;
+    inset: 0;
     height: 100dvh;
     z-index: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    perspective: 1200px;
+    overflow: hidden;
 }
 
-@media (max-width: 1120px) {
-    .hero-mannequin-stage-fixed {
-        left: 0;
+.hero-reveal-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* Vela leve para que el texto respire sin tapar el cielo — tonos
+       fríos/azulados, no negro puro, para acompañar el fondo del video
+       en vez de competir con él. */
+    filter: brightness(0.92);
+}
+
+.hero-mannequin-stage-fixed::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(8, 14, 28, 0.35) 0%, rgba(8, 14, 28, 0.05) 25%, rgba(8, 14, 28, 0.05) 60%, rgba(8, 14, 28, 0.55) 100%);
+}
+
+.hero-scroll-cue {
+    position: absolute;
+    left: 50%;
+    bottom: clamp(1.5rem, 4vh, 3rem);
+    transform: translateX(-50%);
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    color: #ffffff;
+    font-family: var(--font-primary);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+    animation: scrollCueBob 2s ease-in-out infinite;
+}
+
+@keyframes scrollCueBob {
+    0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.85; }
+    50% { transform: translateX(-50%) translateY(8px); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hero-scroll-cue {
+        animation: none;
     }
 }
 
@@ -713,12 +755,15 @@ main {
     gap: clamp(1.25rem, 3vw, 2.5rem);
     max-width: min(640px, 100%);
     padding: 1.5rem clamp(1.5rem, 3vw, 2.25rem);
-    background: var(--bg-glass-card);
-    border: 1px solid var(--border-gold);
+    /* Azul-noche (no el glass cálido que usan las tarjetas de producto en
+       el resto del sitio): estas tarjetas flotan sobre el video de cielo,
+       tienen que acompañarlo. */
+    background: rgba(9, 16, 32, 0.55);
+    border: 1px solid rgba(180, 210, 255, 0.16);
     border-radius: var(--radius-lg);
     backdrop-filter: blur(28px) saturate(160%);
     -webkit-backdrop-filter: blur(28px) saturate(160%);
-    box-shadow: var(--glow-card);
+    box-shadow: 0 24px 50px -12px rgba(4, 8, 18, 0.6);
     /* Estado oculto por defecto en CSS puro: evita FOUC antes de que
        hero-scrolly.js corra, y es el fallback correcto cuando el usuario
        prefiere movimiento reducido (el JS no arma el timeline y estas

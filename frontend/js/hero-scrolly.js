@@ -2,16 +2,16 @@
  * ==============================================================================
  * HERO SCROLLYTELLING — MANIQUÍES CALEB
  * ==============================================================================
- * Ancla (pin) el hero mientras el usuario baja: el texto inicial se desvanece
- * y el MANIQUÍ se abre en 3 partes (cabeza, torso, base) — cada hueco que se
- * abre muestra una tarjeta con el detalle real de esa zona — hasta que las
- * partes se vuelven a unir y cierra con un CTA al catálogo. Usa solo
- * transform/opacity (GPU). No hay video de fondo: nada que tiemble.
+ * Ancla (pin) el hero mientras el usuario baja: el texto inicial se
+ * desvanece y el SCROLL controla directamente el currentTime del video real
+ * (cielo → aparece la laptop → el maniquí emerge → gira solo) — no es un
+ * loop autoplay con zoom en CSS, es scroll-scrubbing de verdad, la misma
+ * técnica que usan los sitios de referencia. Sobre el tramo final (el
+ * maniquí ya solo, girando) aparecen las tarjetas de detalle, hasta cerrar
+ * con un CTA al catálogo.
  *
  * Decisión del dueño del sitio: se muestra siempre, incluso con
- * "prefers-reduced-motion" activado. El CSS (main.css, bloque
- * "@media (prefers-reduced-motion: reduce)" sobre .hero-scrolly-overlay)
- * queda igual como red de seguridad si GSAP no llega a cargar.
+ * "prefers-reduced-motion" activado.
  */
 
 const HeroScrolly = {
@@ -31,83 +31,86 @@ const HeroScrolly = {
     initScrollytelling() {
         const section = document.getElementById('view-inicio');
         const textContent = document.getElementById('hero-text-content');
-        const modelSelector = document.getElementById('hero-model-selector');
-        const sliceHead = document.getElementById('slice-head');
-        const sliceTorso = document.getElementById('slice-torso');
-        const sliceBase = document.getElementById('slice-base');
+        const scrollCue = document.getElementById('hero-scroll-cue');
+        const video = document.getElementById('hero-reveal-video');
         const h1 = document.getElementById('scrolly-hotspot-1');
         const h2 = document.getElementById('scrolly-hotspot-2');
         const h3 = document.getElementById('scrolly-hotspot-3');
         const conclusion = document.getElementById('scrolly-conclusion');
 
-        if (!section || !textContent || !sliceHead || !sliceTorso || !sliceBase || !h1 || !h2 || !h3 || !conclusion) return;
+        if (!section || !textContent || !video || !h1 || !h2 || !h3 || !conclusion) return;
 
-        const fadeInitial = [textContent, modelSelector].filter(Boolean);
-
-        gsap.set(fadeInitial, { opacity: 1, y: 0, pointerEvents: 'auto' });
-        gsap.set([sliceHead, sliceTorso, sliceBase], { yPercent: 0 });
-        gsap.set([h1, h2, h3, conclusion], { opacity: 0, scale: 0.95, pointerEvents: 'none' });
-
-        const tl = gsap.timeline({
-            scrollTrigger: {
-                trigger: section,
-                start: 'top top',
-                end: '+=220%',
-                pin: true,
-                scrub: 1,
-                anticipatePin: 1
+        const build = () => {
+            // Sin duración conocida no hay nada que scrubear.
+            if (!video.duration || Number.isNaN(video.duration)) {
+                video.addEventListener('loadedmetadata', build, { once: true });
+                return;
             }
-        });
 
-        // Salida del texto inicial y el selector de modelos.
-        tl.to(fadeInitial, {
-            opacity: 0,
-            y: -20,
-            duration: 0.1,
-            ease: 'power2.inOut',
-            pointerEvents: 'none'
-        }, 0);
+            const fadeInitial = [textContent, scrollCue].filter(Boolean);
 
-        // El maniquí se abre: la cabeza sube, la base baja, el torso no se mueve.
-        tl.to(sliceHead, { yPercent: -55, duration: 0.22, ease: 'power2.inOut' }, 0.05)
-          .to(sliceBase, { yPercent: 55, duration: 0.22, ease: 'power2.inOut' }, 0.05);
+            gsap.set(fadeInitial, { opacity: 1, y: 0, pointerEvents: 'auto' });
+            gsap.set(video, { currentTime: 0 });
+            gsap.set([h1, h2, h3, conclusion], { opacity: 0, scale: 0.95, pointerEvents: 'none' });
 
-        // Paso 1 — Cabeza & Hombros.
-        tl.to(h1, { opacity: 1, scale: 1, duration: 0.08, ease: 'power2.out' }, 0.28)
-          .to(h1, { opacity: 0, scale: 0.95, duration: 0.06, ease: 'power2.in' }, 0.44);
+            const tl = gsap.timeline({
+                scrollTrigger: {
+                    trigger: section,
+                    start: 'top top',
+                    end: '+=260%',
+                    pin: true,
+                    scrub: 1,
+                    anticipatePin: 1
+                }
+            });
 
-        // Paso 2 — Torso.
-        tl.to(h2, { opacity: 1, scale: 1, duration: 0.08, ease: 'power2.out' }, 0.50)
-          .to(h2, { opacity: 0, scale: 0.95, duration: 0.06, ease: 'power2.in' }, 0.66);
+            // El scroll recorre el video entero de punta a punta.
+            tl.to(video, { currentTime: video.duration, ease: 'none', duration: 1 }, 0);
 
-        // Paso 3 — Base & Piernas.
-        tl.to(h3, { opacity: 1, scale: 1, duration: 0.08, ease: 'power2.out' }, 0.72)
-          .to(h3, { opacity: 0, scale: 0.95, duration: 0.06, ease: 'power2.in' }, 0.86);
+            // Salida del texto inicial y el aviso de scroll (bien al arranque).
+            tl.to(fadeInitial, {
+                opacity: 0,
+                y: -20,
+                duration: 0.08,
+                ease: 'power2.inOut',
+                pointerEvents: 'none'
+            }, 0.02);
 
-        // Las partes se vuelven a unir antes del cierre.
-        tl.to([sliceHead, sliceBase], { yPercent: 0, duration: 0.1, ease: 'power2.inOut' }, 0.86);
+            // El último cuarto del video es el maniquí ya solo, girando en el
+            // cielo — ahí van las 3 tarjetas de detalle real del producto.
+            tl.to(h1, { opacity: 1, scale: 1, duration: 0.06, ease: 'power2.out' }, 0.78)
+              .to(h1, { opacity: 0, scale: 0.95, duration: 0.05, ease: 'power2.in' }, 0.86);
 
-        // Cierre — CTA al catálogo (queda visible hasta liberar el pin).
-        tl.to(conclusion, {
-            opacity: 1,
-            scale: 1,
-            duration: 0.1,
-            ease: 'back.out(1.5)',
-            pointerEvents: 'auto'
-        }, 0.90);
+            tl.to(h2, { opacity: 1, scale: 1, duration: 0.06, ease: 'power2.out' }, 0.87)
+              .to(h2, { opacity: 0, scale: 0.95, duration: 0.05, ease: 'power2.in' }, 0.94);
 
-        this.scrollTriggerInstance = tl.scrollTrigger;
+            tl.to(h3, { opacity: 1, scale: 1, duration: 0.06, ease: 'power2.out' }, 0.95)
+              .to(h3, { opacity: 0, scale: 0.95, duration: 0.04, ease: 'power2.in' }, 1.0);
+
+            // Cierre — CTA al catálogo, coincide con el último frame del video.
+            tl.to(conclusion, {
+                opacity: 1,
+                scale: 1,
+                duration: 0.06,
+                ease: 'back.out(1.5)',
+                pointerEvents: 'auto'
+            }, 0.97);
+
+            this.scrollTriggerInstance = tl.scrollTrigger;
+        };
+
+        build();
     },
 
     /**
      * Esta es una SPA de vistas por display:none, no de secciones apiladas:
      * el pin de GSAP envuelve #view-inicio en un "pin-spacer" con altura fija
-     * (la distancia de scroll reservada, ~220% del viewport). Si el usuario
-     * navega a otra vista, esa sección pasa a display:none pero el spacer
-     * (que tiene su propio alto inline, independiente del hijo) sigue
-     * ocupando ese espacio vacío ANTES de la vista nueva, empujándola fuera
-     * de pantalla. Por eso hay que matar el pin al salir de Inicio y
-     * reconstruirlo al volver — ver la llamada en UI.navigateView().
+     * (la distancia de scroll reservada). Si el usuario navega a otra vista,
+     * esa sección pasa a display:none pero el spacer (que tiene su propio
+     * alto inline, independiente del hijo) sigue ocupando ese espacio vacío
+     * ANTES de la vista nueva, empujándola fuera de pantalla. Por eso hay
+     * que matar el pin al salir de Inicio y reconstruirlo al volver — ver
+     * la llamada en UI.navigateView().
      */
     teardown() {
         if (this.scrollTriggerInstance) {

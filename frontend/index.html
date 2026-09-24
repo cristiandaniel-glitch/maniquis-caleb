@@ -115,31 +115,18 @@
                     <!-- Fondo ambiental estático (sin video: nada que tiemble) -->
                     <div class="hero-ambient-backdrop"></div>
 
-                    <!-- Maniquí anclado a la pantalla visible (no al flujo del grid):
-                         así el pin siempre lo mantiene dentro de foco sin importar si
-                         el texto de al lado se apila arriba en pantallas angostas. -->
+                    <!-- Video real (generado a partir de tu prompt) anclado a la
+                         pantalla visible: el scroll controla su currentTime, no es
+                         solo CSS — ver hero-scrolly.js. -->
                     <div class="hero-mannequin-stage-fixed" id="hero-3d-interactive-stage">
-                        <div class="stage-ambient-glow"></div>
+                        <video id="hero-reveal-video" class="hero-reveal-video" src="/assets/videos/hero-reveal.mp4" poster="/assets/images/hero-reveal-poster.jpg" muted playsinline preload="auto"></video>
+                    </div>
 
-                        <div class="hero-mannequin-viewport mannequin-explode-stage" id="mannequin-explode-stage">
-                            <div class="mannequin-slice slice-head" id="slice-head">
-                                <img src="/assets/images/mannequin-aura.png" alt="Cabeza y hombros del maniquí Aura" class="slice-img">
-                            </div>
-                            <div class="mannequin-slice slice-torso" id="slice-torso">
-                                <img src="/assets/images/mannequin-aura.png" alt="Torso del maniquí Aura" class="slice-img slice-img-torso">
-                            </div>
-                            <div class="mannequin-slice slice-base" id="slice-base">
-                                <img src="/assets/images/mannequin-aura.png" alt="Base y piernas del maniquí Aura" class="slice-img slice-img-base">
-                            </div>
-                        </div>
-
-                        <!-- Selector de Modelos en Vivo -->
-                        <div class="stage-model-selector" id="hero-model-selector" role="tablist" aria-label="Selector de maniquíes en vivo">
-                            <button type="button" class="model-pill active" id="btn-model-aura" onclick="Hero3D.selectModel('aura')">Aura Oro</button>
-                            <button type="button" class="model-pill" id="btn-model-noir" onclick="Hero3D.selectModel('noir')">Velvet Noir</button>
-                            <button type="button" class="model-pill" id="btn-model-busto" onclick="Hero3D.selectModel('busto')">Busto Sastre</button>
-                            <button type="button" class="model-pill" id="btn-model-titan" onclick="Hero3D.selectModel('titan')">Titán</button>
-                        </div>
+                    <!-- Aviso de scroll: al arrancar el video solo muestra cielo, esto
+                         invita a bajar (mismo recurso que usan los sitios de referencia). -->
+                    <div class="hero-scroll-cue" id="hero-scroll-cue">
+                        <span>Desliza para descubrir</span>
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
                     </div>
 
                     <div class="hero-container-layout hero-container-layout-text-only" id="hero-initial-content">
