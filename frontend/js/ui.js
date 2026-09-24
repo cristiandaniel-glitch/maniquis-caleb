@@ -172,42 +172,7 @@ const UI = {
         });
     },
 
-    /**
-     * Generador de Destellos de Oro Ambiental.
-     */
-    createGoldDust() {
-        let container = document.getElementById('gold-dust-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'gold-dust-container';
-            container.className = 'gold-dust-container';
-            document.body.appendChild(container);
-        }
-
-        container.innerHTML = '';
-        const sparkleCount = window.innerWidth < 768 ? 14 : 26;
-
-        for (let i = 0; i < sparkleCount; i++) {
-            const sparkle = document.createElement('div');
-            sparkle.className = 'gold-sparkle';
-
-            const size = Math.random() * 4 + 2;
-            const left = Math.random() * 100;
-            const duration = Math.random() * 8 + 10;
-            const delay = -1 * (Math.random() * duration);
-
-            sparkle.style.width = `${size}px`;
-            sparkle.style.height = `${size}px`;
-            sparkle.style.left = `${left}vw`;
-            sparkle.style.animationDuration = `${duration}s`;
-            sparkle.style.animationDelay = `${delay}s`;
-
-            container.appendChild(sparkle);
-        }
-    },
-
     initTheme() {
-        this.createGoldDust();
         this.initSpotlightEffect();
         this.initFloatingNavbar();
     },

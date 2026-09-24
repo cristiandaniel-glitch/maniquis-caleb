@@ -158,34 +158,6 @@ main {
     gap: 1rem;
 }
 
-/* Destellos de Oro */
-.gold-dust-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    pointer-events: none;
-    z-index: 1;
-    overflow: hidden;
-}
-
-.gold-sparkle {
-    position: absolute;
-    border-radius: 50%;
-    background: radial-gradient(circle, #ffffff 15%, var(--accent-gold) 65%, transparent 100%);
-    box-shadow: 0 0 6px var(--accent-gold);
-    animation: sparkleFloat linear infinite;
-    pointer-events: none;
-}
-
-@keyframes sparkleFloat {
-    0% { transform: translateY(105vh) scale(0.3); opacity: 0; }
-    25% { opacity: 0.75; }
-    75% { opacity: 0.75; }
-    100% { transform: translateY(-5vh) scale(1); opacity: 0; }
-}
-
 /* ==============================================================================
    3. FLOATING ISLAND NAVBAR (ISLA DE CRISTAL FLOTANTE MODERNA)
    ============================================================================== */
