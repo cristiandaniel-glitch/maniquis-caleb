@@ -14,12 +14,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 3. Inicializar Enrutador SPA
     UI.initRouter();
+    UI.initMobileNav();
 
     // 4. Sincronizar altura de cabecera fija
     UI.syncHeaderHeight();
 
     // 5. Inicializar Módulos del Sistema
     Hero3D.init();
+    CatalogHero.init();
     await Catalog.init();
     Claims.init();
     Admin.init();

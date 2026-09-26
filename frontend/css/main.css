@@ -29,6 +29,14 @@ body {
     box-sizing: border-box;
 }
 
+/* Sistema tipográfico disciplinado (3 niveles, no una fuente decorativa
+   distinta por sección): Syne para toda la estructura (títulos, texto de
+   párrafo hereda de <body>), UNA sola fuente caligráfica reservada para el
+   acento de marca (la palabra dorada del hero), y Yellowtail solo en textos
+   cortos tipo bajada/etiqueta — nunca en párrafos completos. Una marca
+   premium real se apoya en tipografía limpia y confiada; llenar todo de
+   cursiva es lo que la hacía ver genérica, no al revés. */
+
 main {
     padding-top: calc(var(--header-height-desktop) + 1.5rem);
     min-height: calc(100vh - 200px);
@@ -46,6 +54,13 @@ main {
     display: block;
     opacity: 1;
     transform: translateY(0);
+}
+
+/* El hero de Inicio es a pantalla completa y sube por su cuenta hasta y:0
+   (ver .hero-fullbleed) — el padding-top de .page-view solo dejaría un
+   hueco vacío arriba. */
+#view-inicio {
+    padding-top: 0;
 }
 
 /* ==============================================================================
@@ -143,34 +158,6 @@ main {
     gap: 1rem;
 }
 
-/* Destellos de Oro */
-.gold-dust-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    pointer-events: none;
-    z-index: 1;
-    overflow: hidden;
-}
-
-.gold-sparkle {
-    position: absolute;
-    border-radius: 50%;
-    background: radial-gradient(circle, #ffffff 15%, var(--accent-gold) 65%, transparent 100%);
-    box-shadow: 0 0 6px var(--accent-gold);
-    animation: sparkleFloat linear infinite;
-    pointer-events: none;
-}
-
-@keyframes sparkleFloat {
-    0% { transform: translateY(105vh) scale(0.3); opacity: 0; }
-    25% { opacity: 0.75; }
-    75% { opacity: 0.75; }
-    100% { transform: translateY(-5vh) scale(1); opacity: 0; }
-}
-
 /* ==============================================================================
    3. FLOATING ISLAND NAVBAR (ISLA DE CRISTAL FLOTANTE MODERNA)
    ============================================================================== */
@@ -185,6 +172,7 @@ main {
 }
 
 .floating-island-inner {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -255,6 +243,38 @@ main {
     box-shadow: 0 2px 10px rgba(223, 199, 155, 0.35);
 }
 
+/* Interruptor de Menú (Hamburguesa) — visible solo en el rango colapsado */
+.nav-toggle-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.nav-toggle-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.nav-toggle-btn .icon-close {
+    display: none;
+}
+
+.nav-toggle-btn[aria-expanded="true"] .icon-menu {
+    display: none;
+}
+
+.nav-toggle-btn[aria-expanded="true"] .icon-close {
+    display: block;
+}
+
 /* Barra Informativa Superior Integrada y Discreta */
 .top-notice-pill {
     display: inline-flex;
@@ -283,30 +303,216 @@ main {
     box-shadow: var(--shadow-lg);
 }
 
-/* Video de Fondo Atmosférico Showroom */
-.hero-video-backdrop-container {
+/* Fondo ambiental estático — nada que tiemble ni compita con el maniquí,
+   que es la pieza que se mueve en esta versión. */
+.hero-ambient-backdrop {
     position: absolute;
     inset: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
     z-index: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse 60% 55% at 78% 38%, rgba(223, 199, 155, 0.14) 0%, transparent 65%),
+        radial-gradient(ellipse 70% 60% at 15% 75%, rgba(223, 199, 155, 0.08) 0%, transparent 70%),
+        var(--bg-main);
+}
+
+/* ==============================================================================
+   4.B MANIQUÍ QUE SE "ABRE" EN 3 PARTES (SCROLLYTELLING)
+   ============================================================================== */
+/* Cada franja recorta un tercio de LA MISMA foto (misma técnica que un
+   filmstrip): la <img> mide 300% del alto de su franja y se desplaza con
+   transform (porcentaje relativo a su propio alto, no al de un ancestro),
+   así que no depende de medir píxeles en JS ni de tener 3 fotos separadas.
+   hero-scrolly.js separa las franjas (traslada .mannequin-slice) en vez de
+   tocar este recorte. */
+.mannequin-explode-stage {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+    transition: opacity 0.2s var(--ease-out-lux);
+}
+
+.mannequin-slice {
+    position: relative;
+    height: 33.3333%;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.slice-img {
+    display: block;
+    width: 100%;
+    height: 300%;
+    object-fit: cover;
+    object-position: center top;
+    transform: translateY(0%);
+    filter: drop-shadow(0 16px 32px rgba(0, 0, 0, 0.6));
+    user-select: none;
     pointer-events: none;
 }
 
-.hero-video-element {
+.slice-img-torso {
+    transform: translateY(-33.3333%);
+}
+
+.slice-img-base {
+    transform: translateY(-66.6666%);
+}
+
+/* Tarjetas de texto ancladas a cada franja (columna izquierda, alineadas
+   con la altura de cabeza/torso/base) en vez de una sola tarjeta centrada
+   tapando todo. */
+.scrolly-hotspot-side {
+    left: clamp(1.25rem, 4vw, 3rem) !important;
+    right: auto !important;
+    max-width: 380px !important;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    padding: 1.25rem 1.5rem;
+}
+
+#scrolly-hotspot-1.scrolly-hotspot-side { top: 16%; }
+#scrolly-hotspot-2.scrolly-hotspot-side { top: 43%; }
+#scrolly-hotspot-3.scrolly-hotspot-side { top: 70%; }
+
+@media (max-width: 900px) {
+    /* left+right+margin:auto en vez de translateX(-50%): GSAP escribe su
+       propio `transform` sobre estos elementos (scale, la animación de
+       entrada/salida) y pisaría cualquier transform puesto por CSS. */
+    .scrolly-hotspot-side {
+        left: 1.25rem !important;
+        right: 1.25rem !important;
+        max-width: 420px;
+        margin: 0 auto;
+        align-items: center;
+        text-align: center;
+    }
+
+    #scrolly-hotspot-1.scrolly-hotspot-side { top: 8%; }
+    #scrolly-hotspot-2.scrolly-hotspot-side { top: 38%; }
+    #scrolly-hotspot-3.scrolly-hotspot-side { top: 68%; }
+}
+
+/* Hero de Inicio a pantalla completa (borde a borde, sin tarjeta oscura
+   encima): rompe el max-width de .container con el truco del margen
+   negativo, y sube por encima del padding-top de <main> para arrancar
+   en la mismísima esquina superior, detrás del nav flotante. */
+.hero-fullbleed {
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+    margin-top: calc(-1 * var(--header-height-desktop) - 1.5rem);
+    min-height: 100dvh;
+    border-radius: 0;
+    border: none;
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    padding-top: calc(var(--header-height-desktop) + 2.5rem);
+    padding-bottom: 3rem;
+    display: flex;
+    align-items: center;
+}
+
+/* El fondo (.hero-fullbleed) va borde a borde, pero el contenido legible
+   (título/CTAs/maniquí) se mantiene en el mismo ancho de lectura que el
+   resto del sitio — si no, la grilla de 2 columnas queda sin un ancho de
+   referencia claro dentro de un padre flex y se desarma. */
+.hero-fullbleed .hero-container-layout {
+    width: 100%;
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 0 clamp(1.25rem, 3.5vw, 2.5rem);
+}
+
+.hero-fullbleed .hero-left-content {
+    /* Azul-noche en vez de negro puro: acompaña el cielo del video de
+       fondo en lugar de plantar un rectángulo negro encima. */
+    background: rgba(9, 16, 32, 0.5);
+    backdrop-filter: blur(22px) saturate(160%);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    border: 1px solid rgba(180, 210, 255, 0.14);
+    border-radius: var(--radius-lg);
+    padding: clamp(1.75rem, 3vw, 2.75rem);
+    box-shadow: 0 24px 60px -12px rgba(4, 8, 18, 0.55);
+}
+
+/* Ahora que el maniquí vive en su propia capa (.hero-mannequin-stage-fixed,
+   más abajo) esta grilla solo tiene la columna de texto — se angosta para
+   que quede como un panel a la izquierda, no estirado a todo el ancho. */
+.hero-container-layout-text-only {
+    grid-template-columns: 1fr;
+    max-width: 620px;
+}
+
+/* Maniquí anclado al VIEWPORT visible (top:0 + height:100dvh), no al alto
+   natural del contenido de texto — es la misma técnica que
+   .hero-scrolly-overlay: durante el pin, la sección queda fija en pantalla,
+   así que esto siempre coincide con lo que el usuario ve, sin importar si
+   el texto de al lado es más alto que una pantalla. */
+/* Ahora es el video de fondo a pantalla completa (antes era la columna
+   derecha con el maniquí en 3 partes) — por eso ya no se limita al 52%. */
+.hero-mannequin-stage-fixed {
+    position: absolute;
+    inset: 0;
+    height: 100dvh;
+    z-index: 1;
+    overflow: hidden;
+}
+
+.hero-reveal-video {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    opacity: 0.22;
-    filter: saturate(0.9) contrast(1.1);
-    transform: scale(1.05);
+    /* Vela leve para que el texto respire sin tapar el cielo — tonos
+       fríos/azulados, no negro puro, para acompañar el fondo del video
+       en vez de competir con él. */
+    filter: brightness(0.92);
 }
 
-.hero-video-overlay-gradient {
+.hero-mannequin-stage-fixed::after {
+    content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at 65% 50%, rgba(6, 6, 8, 0.3) 0%, rgba(6, 6, 8, 0.85) 75%, #060608 100%);
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(8, 14, 28, 0.35) 0%, rgba(8, 14, 28, 0.05) 25%, rgba(8, 14, 28, 0.05) 60%, rgba(8, 14, 28, 0.55) 100%);
+}
+
+.hero-scroll-cue {
+    position: absolute;
+    left: 50%;
+    bottom: clamp(1.5rem, 4vh, 3rem);
+    transform: translateX(-50%);
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    color: #ffffff;
+    font-family: var(--font-primary);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+    animation: scrollCueBob 2s ease-in-out infinite;
+}
+
+@keyframes scrollCueBob {
+    0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.85; }
+    50% { transform: translateX(-50%) translateY(8px); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hero-scroll-cue {
+        animation: none;
+    }
 }
 
 .hero-container-layout {
@@ -347,13 +553,17 @@ main {
     color: #ffffff;
     margin-bottom: 1.35rem;
     letter-spacing: -0.6px;
+    text-transform: none;
 }
 
 .hero-title-script-gold {
     font-family: var(--font-serif-lux);
     color: var(--accent-gold);
-    font-style: italic;
-    font-weight: 400;
+    font-style: normal;
+    font-weight: 700;
+    text-transform: none;
+    /* Único momento caligráfico del sitio: el resto del título va en la
+       misma tipografía de estructura (Syne) que el resto del sitio. */
     text-shadow: var(--glow-gold);
 }
 
@@ -515,6 +725,114 @@ main {
     box-shadow: 0 2px 10px rgba(223, 199, 155, 0.4);
 }
 
+/* Capa de Scrollytelling del Hero: pinned por hero-scrolly.js mientras el
+   usuario baja. Las 4 tarjetas comparten el mismo lugar (position: absolute,
+   inset: 0) y se turnan vía opacity/scale — así no hay que resolver 4
+   posiciones distintas por breakpoint. */
+.hero-scrolly-overlay {
+    /* Alto fijo al viewport (no al alto natural del wrapper, que en móvil es
+       más alto que la pantalla por el contenido apilado a 1 columna). Durante
+       el pin, la sección se fija en pantalla, así que top:0 + 100dvh siempre
+       coincide con lo que el usuario realmente ve. */
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100dvh;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(1.5rem, 4vw, 3.5rem);
+    pointer-events: none;
+}
+
+.scrolly-hotspot,
+.scrolly-conclusion {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: clamp(1.25rem, 3vw, 2.5rem);
+    max-width: min(640px, 100%);
+    padding: 1.5rem clamp(1.5rem, 3vw, 2.25rem);
+    /* Azul-noche (no el glass cálido que usan las tarjetas de producto en
+       el resto del sitio): estas tarjetas flotan sobre el video de cielo,
+       tienen que acompañarlo. */
+    background: rgba(9, 16, 32, 0.55);
+    border: 1px solid rgba(180, 210, 255, 0.16);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(28px) saturate(160%);
+    -webkit-backdrop-filter: blur(28px) saturate(160%);
+    box-shadow: 0 24px 50px -12px rgba(4, 8, 18, 0.6);
+    /* Estado oculto por defecto en CSS puro: evita FOUC antes de que
+       hero-scrolly.js corra, y es el fallback correcto cuando el usuario
+       prefiere movimiento reducido (el JS no arma el timeline y estas
+       tarjetas simplemente nunca aparecen; el hero queda estático y legible). */
+    opacity: 0;
+    pointer-events: none;
+}
+
+.scrolly-hotspot-img {
+    width: clamp(64px, 9vw, 96px);
+    height: clamp(64px, 9vw, 96px);
+    object-fit: contain;
+    object-position: center top;
+    flex-shrink: 0;
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.9));
+}
+
+.scrolly-hotspot-index {
+    display: block;
+    font-family: var(--font-handwritten);
+    font-size: 1.3rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    color: var(--accent-gold);
+    margin-bottom: 0.15rem;
+}
+
+.scrolly-hotspot-text h3 {
+    font-family: var(--font-heading);
+    font-size: clamp(1.1rem, 2vw, 1.4rem);
+    font-weight: 800;
+    color: #ffffff;
+    margin-bottom: 0.4rem;
+}
+
+.scrolly-hotspot-text p {
+    font-size: 0.92rem;
+    color: var(--text-secondary);
+    line-height: 1.55;
+}
+
+.scrolly-conclusion {
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+}
+
+.scrolly-conclusion h3 {
+    font-family: var(--font-heading);
+    font-size: clamp(1.3rem, 2.5vw, 1.8rem);
+    font-weight: 800;
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+}
+
+.scrolly-conclusion p {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-bottom: 1.5rem;
+    max-width: 46ch;
+}
+
+@media (max-width: 640px) {
+    .scrolly-hotspot {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+
 /* ==============================================================================
    5. BENTO GRID ARCHITECTURAL (SECCIÓN NOSOTROS)
    ============================================================================== */
@@ -654,9 +972,10 @@ main {
 }
 
 .section-subtitle-epic {
-    font-size: clamp(0.95rem, 1.8vw, 1.05rem);
+    font-family: var(--font-handwritten);
+    font-size: clamp(1.3rem, 2.4vw, 1.6rem);
     color: var(--text-secondary);
-    line-height: 1.7;
+    line-height: 1.5;
 }
 
 .catalog-two-columns-layout {
@@ -1035,6 +1354,55 @@ main {
     }
 }
 
+/* Rango colapsado: el pill de navegación no entra completo (medido: se desborda
+   desde ~1120px con los 6 links + logo + botón de reclamación), así que se
+   convierte en un menú desplegable accionado por el botón hamburguesa. */
+@media (max-width: 1120px) {
+    .nav-toggle-btn {
+        display: inline-flex;
+    }
+
+    .nav-menu {
+        position: absolute;
+        top: calc(100% + 0.6rem);
+        left: 0;
+        right: 0;
+        z-index: 10001;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.15rem;
+        background: rgba(10, 10, 14, 0.95);
+        backdrop-filter: blur(24px) saturate(180%);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        padding: 0.6rem;
+        box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.95);
+        opacity: 0;
+        transform: translateY(-8px) scale(0.97);
+        pointer-events: none;
+        transition: opacity 0.22s var(--ease-out-lux), transform 0.22s var(--ease-out-lux);
+    }
+
+    .nav-menu.is-open {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        pointer-events: auto;
+    }
+
+    .nav-link {
+        text-align: center;
+        padding: 0.65rem 0.95rem;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .nav-menu {
+            transition: opacity 0.15s linear;
+            transform: none;
+        }
+    }
+}
+
 @media (max-width: 880px) {
     .floating-island-wrapper {
         top: 0.65rem;
@@ -1045,20 +1413,8 @@ main {
         padding: 0.55rem 1rem;
     }
 
-    .nav-menu {
-        overflow-x: auto;
-        scrollbar-width: none;
-        -webkit-overflow-scrolling: touch;
-        max-width: 60%;
-    }
-
-    .nav-menu::-webkit-scrollbar {
+    .action-label-text {
         display: none;
-    }
-
-    .nav-link {
-        font-size: 0.8rem;
-        padding: 0.35rem 0.75rem;
     }
 
     .contact-layout-grid {

@@ -4,11 +4,13 @@ Implementación segura, rápida y modular basada en la biblioteca estándar de P
 Incluye autenticación administrativa, protección contra ataques y filtros de archivos sensibles.
 """
 
+import gzip
 import http.server
 import json
 import mimetypes
 import os
 import socketserver
+import threading
 import urllib.parse
 from typing import Any, Dict, Optional, Tuple
 
@@ -44,6 +46,30 @@ from backend.security import (
 )
 
 
+mimetypes.add_type("image/webp", ".webp")
+
+
+# Compresión gzip para texto (HTML, CSS, JS, JSON, SVG). Los estáticos
+# comprimidos se guardan en memoria por (ruta, fecha de modificación) para no
+# recomprimir en cada visita; las imágenes WebP/JPG ya vienen comprimidas.
+COMPRESSIBLE = ("text/", "application/javascript", "application/json", "image/svg+xml")
+_GZIP_CACHE: Dict[Tuple[str, float], bytes] = {}
+_GZIP_LOCK = threading.Lock()
+
+
+def _gzip_static(path: str, mtime: float, raw: bytes) -> bytes:
+    key = (path, mtime)
+    with _GZIP_LOCK:
+        hit = _GZIP_CACHE.get(key)
+    if hit is None:
+        hit = gzip.compress(raw, compresslevel=6)
+        with _GZIP_LOCK:
+            if len(_GZIP_CACHE) > 200:
+                _GZIP_CACHE.clear()
+            _GZIP_CACHE[key] = hit
+    return hit
+
+
 class SecureRequestHandler(http.server.BaseHTTPRequestHandler):
     """Manejador HTTP con soporte para CORS, cabeceras de seguridad y API REST."""
 
@@ -67,12 +93,31 @@ class SecureRequestHandler(http.server.BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
         self.send_header("Access-Control-Max-Age", "86400")
 
+    # Datos públicos que cambian poco: el navegador puede reutilizarlos 60 s,
+    # lo que evita repetir la misma consulta en cada página.
+    PUBLIC_CACHEABLE = ("/api/products", "/api/categories", "/api/reviews", "/api/legal")
+
+    def accepts_gzip(self) -> bool:
+        return "gzip" in (self.headers.get("Accept-Encoding") or "")
+
     def send_json_response(self, data: Any, status_code: int = 200) -> None:
         """Envía una respuesta JSON formateada de forma segura."""
         response_bytes = json.dumps(data, ensure_ascii=False).encode("utf-8")
+        path = urllib.parse.urlparse(self.path).path.rstrip("/")
+        if self.command == "GET" and status_code == 200 and path in self.PUBLIC_CACHEABLE:
+            cache_control = "public, max-age=60, stale-while-revalidate=300"
+        else:
+            cache_control = "no-store"
+        use_gzip = len(response_bytes) > 1024 and self.accepts_gzip()
+        if use_gzip:
+            response_bytes = gzip.compress(response_bytes, compresslevel=6)
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        if use_gzip:
+            self.send_header("Content-Encoding", "gzip")
+        self.send_header("Vary", "Accept-Encoding")
         self.send_header("Content-Length", str(len(response_bytes)))
+        self.send_header("Cache-Control", cache_control)
         self.send_cors_headers()
         self.send_security_headers()
         self.end_headers()
@@ -431,12 +476,13 @@ class SecureRequestHandler(http.server.BaseHTTPRequestHandler):
                 return
 
             # Política de Caché Inteligente de Alto Rendimiento
+            # Imágenes y videos: se reutilizan un día y luego se revalidan en segundo
+            # plano. CSS, JS y HTML: siempre se revalidan con el ETag (responde 304
+            # sin reenviar el archivo si no cambió), así los cambios se ven al instante.
             if ext.lower() in [".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".woff", ".woff2", ".svg"]:
-                cache_control = "public, max-age=31536000, immutable"
-            elif ext.lower() in [".css", ".js"]:
                 cache_control = "public, max-age=86400, stale-while-revalidate=604800"
             else:
-                cache_control = "no-cache, must-revalidate"
+                cache_control = "no-cache"
 
             range_header = self.headers.get("Range")
 
@@ -471,8 +517,15 @@ class SecureRequestHandler(http.server.BaseHTTPRequestHandler):
                 with open(target_path, "rb") as f:
                     content = f.read()
 
+                use_gzip = mime_type.startswith(COMPRESSIBLE) and len(content) > 1024 and self.accepts_gzip()
+                if use_gzip:
+                    content = _gzip_static(target_path, stat_info.st_mtime, content)
+
                 self.send_response(200)
                 self.send_header("Content-Type", mime_type)
+                if use_gzip:
+                    self.send_header("Content-Encoding", "gzip")
+                self.send_header("Vary", "Accept-Encoding")
                 self.send_header("Content-Length", str(len(content)))
                 self.send_header("Accept-Ranges", "bytes")
                 self.send_header("ETag", etag)

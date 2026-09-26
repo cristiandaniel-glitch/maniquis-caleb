@@ -469,3 +469,73 @@ const Catalog = {
 };
 
 window.Catalog = Catalog;
+
+/**
+ * Vitrina destacada del Catálogo (selector Aura / Golden Runway / Atelier
+ * Titán). Datos reales tomados de la base (products: SKU MNQ-FEM-001,
+ * MNQ-FEM-003, MNQ-MAS-001) — son los 3 destacados cuya foto en la base
+ * de datos ya es un render de estudio presentable; el resto de destacados
+ * (Velvet Noir, Busto Heritage, Aero Frame) apuntan a fotos de inventario/
+ * bodega que no quedan bien en una vitrina grande, así que se muestran
+ * solo en el grid de abajo, no acá.
+ */
+const CatalogHero = {
+    currentKey: 'aura',
+    items: {
+        aura: {
+            name: 'Maniquí Haute Couture "Aura"',
+            sku: 'MNQ-FEM-001',
+            image: '/assets/productos/maniqui-femenino-abstracto-blanco.webp',
+            desc: 'Blanco Mate Premium · Fibra de vidrio reforzada'
+        },
+        gold: {
+            name: 'Maniquí "Golden Runway"',
+            sku: 'MNQ-FEM-003',
+            image: '/assets/productos/maniqui-femenino-abstracto-negro.webp',
+            desc: 'Dorado Oro Brillante · Polímero cromado oro espejo'
+        },
+        titan: {
+            name: 'Maniquí "Atelier Titan"',
+            sku: 'MNQ-MAS-001',
+            image: '/assets/productos/maniqui-masculino-realista.webp',
+            desc: 'Gris Grafito Titan · Fibra de vidrio de alta densidad'
+        }
+    },
+
+    select(key) {
+        if (key === this.currentKey || !this.items[key]) return;
+        this.currentKey = key;
+
+        const img = document.getElementById('catalog-hero-img');
+        const title = document.getElementById('catalog-hero-title');
+        const desc = document.getElementById('catalog-hero-desc');
+        const cta = document.getElementById('catalog-hero-cta');
+        if (!img || !title || !desc || !cta) return;
+
+        document.querySelectorAll('#catalog-hero-swatches .model-pill').forEach(pill => {
+            pill.classList.toggle('active', pill.dataset.key === key);
+        });
+
+        const fadeTargets = [img, title, desc];
+        fadeTargets.forEach(el => { el.style.opacity = '0'; });
+
+        setTimeout(() => {
+            const item = this.items[key];
+            img.src = item.image;
+            img.alt = item.name;
+            title.textContent = item.name;
+            desc.textContent = item.desc;
+            cta.onclick = () => Catalog.orderProduct(item.name, item.sku);
+            fadeTargets.forEach(el => { el.style.opacity = '1'; });
+        }, 180);
+    },
+
+    init() {
+        const cta = document.getElementById('catalog-hero-cta');
+        if (!cta) return;
+        const item = this.items[this.currentKey];
+        cta.onclick = () => Catalog.orderProduct(item.name, item.sku);
+    }
+};
+
+window.CatalogHero = CatalogHero;

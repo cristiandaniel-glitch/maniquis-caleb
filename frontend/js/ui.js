@@ -102,12 +102,20 @@ const UI = {
     navigateView(viewName) {
         const validRoutes = ['inicio', 'catalogo', 'nosotros', 'colgantes', 'contacto', 'resenas', 'reclamos'];
         const targetView = validRoutes.includes(viewName) ? viewName : 'inicio';
+        const previousView = document.body.getAttribute('data-view');
 
         const views = document.querySelectorAll('.page-view');
         const navLinks = document.querySelectorAll('.nav-link');
         const targetEl = document.getElementById(`view-${targetView}`);
 
         if (!targetEl) return;
+
+        // El pin del hero scrollytelling reserva espacio en el documento (ver
+        // hero-scrolly.js). Si no se destruye al salir de Inicio, ese espacio
+        // vacío empuja la vista nueva fuera de pantalla.
+        if (typeof HeroScrolly !== 'undefined' && previousView === 'inicio' && targetView !== 'inicio') {
+            HeroScrolly.teardown();
+        }
 
         views.forEach(v => v.classList.remove('active'));
         navLinks.forEach(l => {
@@ -123,6 +131,10 @@ const UI = {
         window.history.replaceState(null, null, `#${targetView}`);
 
         window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+
+        if (typeof HeroScrolly !== 'undefined' && targetView === 'inicio' && previousView !== 'inicio') {
+            HeroScrolly.rebuild();
+        }
 
         if (targetView === 'catalogo') {
             if (typeof Catalog !== 'undefined' && (!Catalog.products || Catalog.products.length === 0)) {
@@ -160,44 +172,68 @@ const UI = {
         });
     },
 
+    initTheme() {
+        this.initSpotlightEffect();
+        this.initFloatingNavbar();
+    },
+
     /**
-     * Generador de Destellos de Oro Ambiental.
+     * Mide la altura real del header flotante (logo + nav + acciones, que puede
+     * variar por breakpoint o al cargar las fuentes web) y la escribe en la
+     * variable --header-height-desktop para que `main { padding-top }` nunca
+     * quede desincronizado ni el contenido se tape debajo del header.
      */
-    createGoldDust() {
-        let container = document.getElementById('gold-dust-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'gold-dust-container';
-            container.className = 'gold-dust-container';
-            document.body.appendChild(container);
-        }
+    syncHeaderHeight() {
+        const header = document.getElementById('floating-island-wrapper');
+        if (!header) return;
 
-        container.innerHTML = '';
-        const sparkleCount = window.innerWidth < 768 ? 14 : 26;
+        const rect = header.getBoundingClientRect();
+        const totalHeight = Math.ceil(rect.top + rect.height);
+        document.documentElement.style.setProperty('--header-height-desktop', `${totalHeight}px`);
 
-        for (let i = 0; i < sparkleCount; i++) {
-            const sparkle = document.createElement('div');
-            sparkle.className = 'gold-sparkle';
-
-            const size = Math.random() * 4 + 2;
-            const left = Math.random() * 100;
-            const duration = Math.random() * 8 + 10;
-            const delay = -1 * (Math.random() * duration);
-
-            sparkle.style.width = `${size}px`;
-            sparkle.style.height = `${size}px`;
-            sparkle.style.left = `${left}vw`;
-            sparkle.style.animationDuration = `${duration}s`;
-            sparkle.style.animationDelay = `${delay}s`;
-
-            container.appendChild(sparkle);
+        if (!this._headerResizeBound) {
+            this._headerResizeBound = true;
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => this.syncHeaderHeight(), 150);
+            }, { passive: true });
         }
     },
 
-    initTheme() {
-        this.createGoldDust();
-        this.initSpotlightEffect();
-        this.initFloatingNavbar();
+    /**
+     * Menú móvil/tablet: el pill de navegación no entra completo bajo ~1120px
+     * (ver .nav-toggle-btn en main.css), así que se colapsa en un desplegable
+     * accionado por un botón hamburguesa.
+     */
+    toggleMobileNav(forceOpen) {
+        const menu = document.getElementById('nav-menu');
+        const btn = document.getElementById('nav-toggle-btn');
+        if (!menu || !btn) return;
+
+        const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : !menu.classList.contains('is-open');
+        menu.classList.toggle('is-open', shouldOpen);
+        btn.setAttribute('aria-expanded', String(shouldOpen));
+    },
+
+    initMobileNav() {
+        const menu = document.getElementById('nav-menu');
+        const toggleBtn = document.getElementById('nav-toggle-btn');
+        if (!menu || !toggleBtn) return;
+
+        menu.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => this.toggleMobileNav(false));
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!menu.classList.contains('is-open')) return;
+            if (menu.contains(e.target) || toggleBtn.contains(e.target)) return;
+            this.toggleMobileNav(false);
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') this.toggleMobileNav(false);
+        });
     },
 
     showToast(message, type = 'info', title = '', duration = 4000) {
@@ -262,22 +298,22 @@ const Hero3D = {
     models: {
         aura: {
             name: 'Aura Femenino 1.78m — Oro Espejo',
-            image: '/assets/images/mannequin-aura.png',
+            image: '/assets/productos/maniqui-femenino-abstracto-blanco.webp',
             badge: 'Edición Oro Reflejante'
         },
         noir: {
             name: 'Velvet Noir 1.85m — Negro Satinado',
-            image: '/assets/images/mannequin-noir.png',
+            image: '/assets/productos/maniqui-masculino-negro.webp',
             badge: 'Acabado Negro Velvet Mate'
         },
         busto: {
             name: 'Busto Sastre Francés — Lino & Roble',
-            image: '/assets/images/mannequin-busto.png',
+            image: '/assets/productos/busto-sastre-femenino-crudo.webp',
             badge: 'Lino Natural Cosido a Mano'
         },
         titan: {
             name: 'Titán Masculino 1.88m — Acabado Platino',
-            image: '/assets/images/mannequin-titan.png',
+            image: '/assets/productos/maniqui-masculino-realista.webp',
             badge: 'Alta Densidad & Facción Abstracta'
         }
     },
@@ -342,16 +378,19 @@ const Hero3D = {
         const activeBtn = document.getElementById(`btn-model-${key}`);
         if (activeBtn) activeBtn.classList.add('active');
 
-        const img = document.getElementById('hero-interactive-mannequin-img');
-        if (img) {
-            img.style.transform = 'scale(0.85) rotateY(20deg)';
-            img.style.opacity = '0';
-            setTimeout(() => {
-                img.src = data.image;
-                img.style.transform = 'scale(1) rotateY(0deg)';
-                img.style.opacity = '1';
-            }, 180);
-        }
+        // El maniquí del hero está partido en 3 franjas (ver .mannequin-slice
+        // en main.css); cada franja ya usa su propio transform para recortar
+        // su tercio de la imagen, así que el cambio de modelo solo cruza en
+        // opacidad la caja completa y reemplaza el src de las 3 <img>.
+        const stage = document.getElementById('mannequin-explode-stage');
+        const slices = document.querySelectorAll('#mannequin-explode-stage .slice-img');
+        if (!stage || !slices.length) return;
+
+        stage.style.opacity = '0';
+        setTimeout(() => {
+            slices.forEach(img => { img.src = data.image; });
+            stage.style.opacity = '1';
+        }, 180);
     }
 };
 

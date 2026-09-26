@@ -1,20 +1,21 @@
 /**
- * Hero Inmersivo & Scrollytelling con GSAP y ScrollTrigger.
- * NOVEDADES CALEB - Maniquíes & Retail de Alta Costura.
- * 
- * Funcionalidades:
- * 1. Paneo Cinemático Automático de fondo (Modo Video) de izquierda a derecha.
- * 2. Arrastre manual (Drag & Touch) para inspeccionar libremente.
- * 3. Scrollytelling sincronizado con la rueda del ratón (pin: true, zoom progresivo,
- *    desvanecimiento del titular y emergencia de tarjetas flotantes glassmorphism con hotspots).
+ * ==============================================================================
+ * HERO SCROLLYTELLING — MANIQUÍES CALEB
+ * ==============================================================================
+ * Ancla (pin) el hero mientras el usuario baja: el texto inicial se
+ * desvanece y el SCROLL controla directamente el currentTime del video real
+ * (cielo → aparece la laptop → el maniquí emerge → gira solo) — no es un
+ * loop autoplay con zoom en CSS, es scroll-scrubbing de verdad, la misma
+ * técnica que usan los sitios de referencia. Sobre el tramo final (el
+ * maniquí ya solo, girando) aparecen las tarjetas de detalle, hasta cerrar
+ * con un CTA al catálogo.
+ *
+ * Decisión del dueño del sitio: se muestra siempre, incluso con
+ * "prefers-reduced-motion" activado.
  */
 
 const HeroScrolly = {
-    autoPanTween: null,
     scrollTriggerInstance: null,
-    isDragging: false,
-    startX: 0,
-    currentPanX: 0,
 
     init() {
         if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') {
@@ -24,254 +25,105 @@ const HeroScrolly = {
         }
 
         gsap.registerPlugin(ScrollTrigger);
-
-        this.initAutoPan();
-        this.initDragControls();
         this.initScrollytelling();
     },
 
-    /**
-     * Estado Inicial: Paneo Cinemático Automático (Modo Video en bucle)
-     */
-    initAutoPan() {
-        const bgImg = document.getElementById('hero-showroom-bg');
-        if (!bgImg) return;
-
-        gsap.set(bgImg, { transformOrigin: 'center top' });
-
-        // Paneo suave continuo de izquierda a derecha (yoyo alternate)
-        this.autoPanTween = gsap.to(bgImg, {
-            xPercent: 3.5,
-            duration: 18,
-            ease: 'sine.inOut',
-            repeat: -1,
-            yoyo: true,
-            overwrite: 'auto'
-        });
-    },
-
-    /**
-     * Arrastre manual interactivo (Mouse y Touch)
-     */
-    initDragControls() {
-        const stage = document.getElementById('hero-scrolly-stage');
-        const bgImg = document.getElementById('hero-showroom-bg');
-        if (!stage || !bgImg) return;
-
-        const onStart = (clientX) => {
-            if (window.scrollY > 50) return; // Solo en la cima
-            this.isDragging = true;
-            this.startX = clientX;
-            if (this.autoPanTween) this.autoPanTween.pause();
-            stage.style.cursor = 'grabbing';
-        };
-
-        const onMove = (clientX) => {
-            if (!this.isDragging) return;
-            const deltaX = (clientX - this.startX) * 0.03;
-            this.currentPanX = Math.max(-8, Math.min(8, this.currentPanX + deltaX));
-            this.startX = clientX;
-            gsap.to(bgImg, {
-                xPercent: this.currentPanX,
-                duration: 0.3,
-                ease: 'power1.out',
-                overwrite: 'auto'
-            });
-        };
-
-        const onEnd = () => {
-            if (!this.isDragging) return;
-            this.isDragging = false;
-            stage.style.cursor = 'grab';
-            // Reanudar el paneo automático tras 2.5s de inactividad
-            setTimeout(() => {
-                if (!this.isDragging && window.scrollY < 50 && this.autoPanTween) {
-                    this.autoPanTween.resume();
-                }
-            }, 2500);
-        };
-
-        // Eventos de ratón
-        stage.addEventListener('mousedown', (e) => onStart(e.clientX));
-        window.addEventListener('mousemove', (e) => onMove(e.clientX));
-        window.addEventListener('mouseup', onEnd);
-
-        // Eventos táctiles
-        stage.addEventListener('touchstart', (e) => {
-            if (e.touches.length > 0) onStart(e.touches[0].clientX);
-        }, { passive: true });
-        window.addEventListener('touchmove', (e) => {
-            if (e.touches.length > 0) onMove(e.touches[0].clientX);
-        }, { passive: true });
-        window.addEventListener('touchend', onEnd);
-    },
-
-    /**
-     * Transición a Scrollytelling (GSAP ScrollTrigger con pin: true)
-     */
     initScrollytelling() {
         const section = document.getElementById('view-inicio');
-        const bgImg = document.getElementById('hero-showroom-bg');
-        const heroContent = document.getElementById('hero-initial-content');
-        const scrollyOverlay = document.getElementById('hero-scrolly-overlay');
+        const textContent = document.getElementById('hero-text-content');
+        const scrollCue = document.getElementById('hero-scroll-cue');
+        const video = document.getElementById('hero-reveal-video');
         const h1 = document.getElementById('scrolly-hotspot-1');
         const h2 = document.getElementById('scrolly-hotspot-2');
         const h3 = document.getElementById('scrolly-hotspot-3');
         const conclusion = document.getElementById('scrolly-conclusion');
 
-        if (!section || !bgImg) return;
+        if (!section || !textContent || !video || !h1 || !h2 || !h3 || !conclusion) return;
 
-        // Establecer estados iniciales limpios
-        gsap.set(heroContent, { opacity: 1, y: 0, pointerEvents: 'auto' });
-        gsap.set(scrollyOverlay, { opacity: 0, pointerEvents: 'none' });
-        gsap.set(bgImg, { transformOrigin: 'center top', scale: 1, xPercent: 0 });
-        gsap.set([h1, h2, h3, conclusion], { opacity: 0, scale: 0.85, y: 0 });
-
-        // Timeline sincronizada con el scroll del ratón (pin: true)
-        const tl = gsap.timeline({
-            scrollTrigger: {
-                trigger: section,
-                start: 'top top',
-                end: '+=250%',
-                pin: true,
-                scrub: 1.2,
-                anticipatePin: 1,
-                onEnter: () => {
-                    if (this.autoPanTween) this.autoPanTween.pause();
-                },
-                onLeaveBack: () => {
-                    if (this.autoPanTween) this.autoPanTween.resume();
-                }
+        const build = () => {
+            // Sin duración conocida no hay nada que scrubear.
+            if (!video.duration || Number.isNaN(video.duration)) {
+                video.addEventListener('loadedmetadata', build, { once: true });
+                return;
             }
-        });
 
-        // 1. Desvanecer titular principal y enfocar la cámara hacia el primer maniquí (0% -> 25%)
-        tl.to(heroContent, {
-            opacity: 0,
-            y: -40,
-            duration: 0.25,
-            ease: 'power2.inOut',
-            pointerEvents: 'none'
-        }, 0);
+            const fadeInitial = [textContent, scrollCue].filter(Boolean);
 
-        tl.to(scrollyOverlay, {
-            opacity: 1,
-            duration: 0.2,
-            pointerEvents: 'auto'
-        }, 0.15);
+            gsap.set(fadeInitial, { opacity: 1, y: 0, pointerEvents: 'auto' });
+            gsap.set(video, { currentTime: 0 });
+            gsap.set([h1, h2, h3, conclusion], { opacity: 0, scale: 0.95, pointerEvents: 'none' });
 
-        // PASO 1: Enfoque en Anatomía & Ergonomía (Hotspot 1) (20% -> 45%)
-        tl.to(bgImg, {
-            scale: 1.15,
-            xPercent: -3,
-            duration: 0.4,
-            ease: 'power1.inOut'
-        }, 0.15);
+            const tl = gsap.timeline({
+                scrollTrigger: {
+                    trigger: section,
+                    start: 'top top',
+                    end: '+=260%',
+                    pin: true,
+                    scrub: 1,
+                    anticipatePin: 1
+                }
+            });
 
-        tl.to(h1, {
-            opacity: 1,
-            scale: 1,
-            y: 0,
-            duration: 0.25,
-            ease: 'back.out(1.4)'
-        }, 0.25);
+            // El scroll recorre el video entero de punta a punta.
+            tl.to(video, { currentTime: video.duration, ease: 'none', duration: 1 }, 0);
 
-        // PASO 2: Transición de cámara hacia Acabados & Fibra de Vidrio (Hotspot 2) (45% -> 70%)
-        tl.to(h1, {
-            opacity: 0,
-            scale: 0.85,
-            duration: 0.2,
-            ease: 'power1.in'
-        }, 0.45);
+            // Salida del texto inicial y el aviso de scroll (bien al arranque).
+            tl.to(fadeInitial, {
+                opacity: 0,
+                y: -20,
+                duration: 0.08,
+                ease: 'power2.inOut',
+                pointerEvents: 'none'
+            }, 0.02);
 
-        tl.to(bgImg, {
-            scale: 1.20,
-            xPercent: 1,
-            duration: 0.45,
-            ease: 'power1.inOut'
-        }, 0.45);
+            // El último cuarto del video es el maniquí ya solo, girando en el
+            // cielo — ahí van las 3 tarjetas de detalle real del producto.
+            tl.to(h1, { opacity: 1, scale: 1, duration: 0.06, ease: 'power2.out' }, 0.78)
+              .to(h1, { opacity: 0, scale: 0.95, duration: 0.05, ease: 'power2.in' }, 0.86);
 
-        tl.to(h2, {
-            opacity: 1,
-            scale: 1,
-            y: 0,
-            duration: 0.25,
-            ease: 'back.out(1.4)'
-        }, 0.55);
+            tl.to(h2, { opacity: 1, scale: 1, duration: 0.06, ease: 'power2.out' }, 0.87)
+              .to(h2, { opacity: 0, scale: 0.95, duration: 0.05, ease: 'power2.in' }, 0.94);
 
-        // PASO 3: Transición hacia Bases & Colgantes (Hotspot 3) y Tarjeta de Catálogo (70% -> 95%)
-        tl.to(h2, {
-            opacity: 0,
-            scale: 0.85,
-            duration: 0.2,
-            ease: 'power1.in'
-        }, 0.70);
+            tl.to(h3, { opacity: 1, scale: 1, duration: 0.06, ease: 'power2.out' }, 0.95)
+              .to(h3, { opacity: 0, scale: 0.95, duration: 0.04, ease: 'power2.in' }, 1.0);
 
-        tl.to(bgImg, {
-            scale: 1.14,
-            xPercent: 3,
-            duration: 0.45,
-            ease: 'power1.inOut'
-        }, 0.70);
+            // Cierre — CTA al catálogo, coincide con el último frame del video.
+            tl.to(conclusion, {
+                opacity: 1,
+                scale: 1,
+                duration: 0.06,
+                ease: 'back.out(1.5)',
+                pointerEvents: 'auto'
+            }, 0.97);
 
-        tl.to(h3, {
-            opacity: 1,
-            scale: 1,
-            y: 0,
-            duration: 0.25,
-            ease: 'back.out(1.4)'
-        }, 0.78);
+            this.scrollTriggerInstance = tl.scrollTrigger;
+        };
 
-        tl.to(conclusion, {
-            opacity: 1,
-            scale: 1,
-            duration: 0.3,
-            ease: 'back.out(1.2)'
-        }, 0.82);
-
-        // 4. Suavizar salida fluida al finalizar el recorrido (95% -> 100%)
-        tl.to([h3, conclusion], {
-            opacity: 0.85,
-            duration: 0.1
-        }, 0.95);
-
-        this.scrollTriggerInstance = tl.scrollTrigger;
+        build();
     },
 
-    enable() {
-        if (!this.scrollTriggerInstance) {
-            this.initScrollytelling();
-        } else {
-            this.scrollTriggerInstance.enable(true, true);
-        }
-        if (this.autoPanTween) {
-            this.autoPanTween.play();
-        }
-        if (typeof ScrollTrigger !== 'undefined') {
-            ScrollTrigger.refresh();
-        }
-    },
-
-    disable() {
+    /**
+     * Esta es una SPA de vistas por display:none, no de secciones apiladas:
+     * el pin de GSAP envuelve #view-inicio en un "pin-spacer" con altura fija
+     * (la distancia de scroll reservada). Si el usuario navega a otra vista,
+     * esa sección pasa a display:none pero el spacer (que tiene su propio
+     * alto inline, independiente del hijo) sigue ocupando ese espacio vacío
+     * ANTES de la vista nueva, empujándola fuera de pantalla. Por eso hay
+     * que matar el pin al salir de Inicio y reconstruirlo al volver — ver
+     * la llamada en UI.navigateView().
+     */
+    teardown() {
         if (this.scrollTriggerInstance) {
-            this.scrollTriggerInstance.kill(true);
+            this.scrollTriggerInstance.kill();
             this.scrollTriggerInstance = null;
         }
-        if (this.autoPanTween) {
-            this.autoPanTween.pause();
-        }
-        const section = document.getElementById('view-inicio');
-        if (section) {
-            section.style.removeProperty('transform');
-            section.style.removeProperty('position');
-            section.style.removeProperty('top');
-            section.style.removeProperty('left');
-            section.style.removeProperty('width');
-            section.style.removeProperty('height');
-        }
-        if (typeof ScrollTrigger !== 'undefined') {
-            ScrollTrigger.refresh();
-        }
+    },
+
+    rebuild() {
+        this.teardown();
+        if (typeof gsap === 'undefined' || typeof ScrollTrigger === 'undefined') return;
+        this.initScrollytelling();
+        ScrollTrigger.refresh();
     }
 };
 
