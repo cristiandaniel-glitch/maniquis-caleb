@@ -143,7 +143,8 @@ def get_security_headers() -> Dict[str, str]:
             "connect-src 'self';"
         ),
         "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-        "Cache-Control": "no-cache, no-store, must-revalidate"
+        # Cache-Control no va aquí: cada respuesta define el suyo (los estáticos
+        # se cachean; la API decide según la ruta). Duplicarlo anulaba la caché.
     }
 
 

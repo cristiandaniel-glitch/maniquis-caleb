@@ -485,19 +485,19 @@ const CatalogHero = {
         aura: {
             name: 'Maniquí Haute Couture "Aura"',
             sku: 'MNQ-FEM-001',
-            image: '/assets/images/mannequin-aura.png',
+            image: '/assets/productos/maniqui-femenino-abstracto-blanco.webp',
             desc: 'Blanco Mate Premium · Fibra de vidrio reforzada'
         },
         gold: {
             name: 'Maniquí "Golden Runway"',
             sku: 'MNQ-FEM-003',
-            image: '/assets/images/mannequin-gold.jpg',
+            image: '/assets/productos/maniqui-femenino-abstracto-negro.webp',
             desc: 'Dorado Oro Brillante · Polímero cromado oro espejo'
         },
         titan: {
             name: 'Maniquí "Atelier Titan"',
             sku: 'MNQ-MAS-001',
-            image: '/assets/images/mannequin-titan.png',
+            image: '/assets/productos/maniqui-masculino-realista.webp',
             desc: 'Gris Grafito Titan · Fibra de vidrio de alta densidad'
         }
     },

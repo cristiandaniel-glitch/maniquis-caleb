@@ -5,6 +5,7 @@ Permite consultar opiniones públicas y enviar nuevas reseñas verificadas.
 
 from typing import Any, Dict, Tuple
 from backend.database import execute_mutation, query_all
+from backend.moderation import contains_profanity
 
 
 def ensure_reviews_table():
@@ -28,18 +29,12 @@ def ensure_reviews_table():
     rows = query_all("SELECT COUNT(*) as count FROM reviews;")
     if rows and rows[0]["count"] == 0:
         initial_reviews = [
-            ("Valeria Montes", "Boutique Élysée", "Cusco", "Maniquí Negro Velvet Mate", 5,
-             "Los maniquíes negro velvet mate transformaron totalmente la vitrina de mi tienda en Cusco. La presencia y elegancia atraen miradas de inmediato.", 1),
-            ("Carlos Huamán", "Sastrería Imperial", "Cusco", "Busto Sastre de Lino Francés", 5,
-             "Compramos 6 bustos de lino francés para nuestro taller de confección. La base de madera es sólida y las proporciones anatómicas son perfectas para entallar.", 1),
-            ("Luciana Paredes", "Atelier Alta Moda", "Cusco", "Maniquí Femenino Alta Costura", 5,
-             "Excelente atención en su Stand 3 de Galería La Exitosa. Nos asesoraron con los modelos ideales para vestidos de fiesta y alta costura.", 1),
-            ("Rodrigo Salcedo", "Tendencias Boutique", "Cusco", "Exhibidores Colgantes & Oro Espejo", 5,
-             "Los exhibidores colgantes y maniquíes dorados lucen impecables. Tienen una resistencia superior que no se quiebra con el uso continuo.", 1),
-            ("Fiorella Zúñiga", "Zúñiga Colecciones", "Cusco", "Colección Completa de Maniquíes", 5,
-             "La garantía de 1 año y el soporte postventa nos dio total confianza. Renovamos 12 maniquíes para nuestra cadena y el resultado fue sobresaliente.", 1),
-            ("Martín Estrada", "Galería Moda", "Cusco", "Maniquí Masculino Cromado", 5,
-             "Rápida atención por WhatsApp, precios competitivos y maniquíes de acabado superior. 100% recomendados en Cusco.", 1)
+            ("Dan", "", "Cusco", "Maniquí femenino", 5,
+             "Me atendieron con mucha paciencia y me mostraron varios modelos hasta encontrar el ideal para mi vitrina. El maniquí llegó impecable y le dio otra vida a la tienda.", 1),
+            ("Rodry", "", "Cusco", "Colgadores y percheros", 4,
+             "Buena variedad de colgadores y percheros, y el trato es muy amable. Me respondieron rápido por WhatsApp y todo llegó tal como lo pedí.", 1),
+            ("Cris", "", "Cusco", "Busto de sastre", 5,
+             "El busto de sastre es firme y de muy buen acabado; lo uso todos los días en mi taller. Se nota que les importa que el cliente se vaya contento.", 1),
         ]
         for rev in initial_reviews:
             execute_mutation(
@@ -69,16 +64,18 @@ def handle_create_review(data: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
         ensure_reviews_table()
 
         name = str(data.get("name", "")).strip()
-        boutique = str(data.get("boutique", "")).strip()
+        boutique = str(data.get("boutique", "")).strip()  # opcional
         city = str(data.get("city", "Cusco")).strip() or "Cusco"
-        product_model = str(data.get("product_model", "")).strip() or "Maniquí de Alta Gama"
+        product_model = str(data.get("product_model", "")).strip()
         rating = int(data.get("rating", 5))
         comment = str(data.get("comment", "")).strip()
 
         if not name or len(name) < 2:
             return 400, {"status": "error", "message": "Por favor ingresa tu nombre completo o de tu empresa."}
-        if not boutique or len(boutique) < 2:
-            return 400, {"status": "error", "message": "Por favor ingresa el nombre de tu Boutique o Atelier."}
+        if len(name) > 60 or len(boutique) > 80 or len(city) > 60 or len(product_model) > 80 or len(comment) > 1000:
+            return 400, {"status": "error", "message": "Uno de los campos es demasiado largo."}
+        if any(contains_profanity(t) for t in (name, boutique, city, product_model, comment)):
+            return 400, {"status": "error", "message": "Tu reseña tiene palabras no permitidas. Escríbela de nuevo sin groserías ni insultos."}
         if not comment or len(comment) < 10:
             return 400, {"status": "error", "message": "Tu reseña debe contener al menos 10 caracteres."}
         if rating < 1 or rating > 5:

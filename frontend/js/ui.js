@@ -298,22 +298,22 @@ const Hero3D = {
     models: {
         aura: {
             name: 'Aura Femenino 1.78m — Oro Espejo',
-            image: '/assets/images/mannequin-aura.png',
+            image: '/assets/productos/maniqui-femenino-abstracto-blanco.webp',
             badge: 'Edición Oro Reflejante'
         },
         noir: {
             name: 'Velvet Noir 1.85m — Negro Satinado',
-            image: '/assets/images/mannequin-noir.png',
+            image: '/assets/productos/maniqui-masculino-negro.webp',
             badge: 'Acabado Negro Velvet Mate'
         },
         busto: {
             name: 'Busto Sastre Francés — Lino & Roble',
-            image: '/assets/images/mannequin-busto.png',
+            image: '/assets/productos/busto-sastre-femenino-crudo.webp',
             badge: 'Lino Natural Cosido a Mano'
         },
         titan: {
             name: 'Titán Masculino 1.88m — Acabado Platino',
-            image: '/assets/images/mannequin-titan.png',
+            image: '/assets/productos/maniqui-masculino-realista.webp',
             badge: 'Alta Densidad & Facción Abstracta'
         }
     },

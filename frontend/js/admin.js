@@ -192,7 +192,7 @@ const Admin = {
             const material = document.getElementById('new-prod-material')?.value.trim();
             const color = document.getElementById('new-prod-color')?.value.trim();
             const dimensions = document.getElementById('new-prod-dimensions')?.value.trim();
-            const imageUrl = document.getElementById('new-prod-image')?.value.trim() || '/assets/images/mannequin-aura.png';
+            const imageUrl = document.getElementById('new-prod-image')?.value.trim() || '/assets/productos/maniqui-femenino-abstracto-blanco.webp';
             const isFeatured = document.getElementById('new-prod-featured')?.checked || false;
 
             if (!name) return UI.showToast('El nombre del maniquí es obligatorio.', 'error');
