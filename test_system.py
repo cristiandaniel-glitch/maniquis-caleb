@@ -182,10 +182,16 @@ def run_tests():
     claim_code = claim_res["data"]["claim_code"]
     print(f"  [✔] POST /api/claims -> Hoja generada bajo código: {claim_code}")
 
-    # Consultar Reclamo por Código
+    # Consulta pública por código: solo el estado, sin datos personales (Ley 29733)
     status, _, claim_get = get(f"/api/claims/{claim_code}")
     claim_item = json.loads(claim_get.decode("utf-8"))["data"]
-    print(f"  [✔] GET /api/claims/{claim_code} -> Reclamante: {claim_item['full_name']}, Estado: {claim_item['status']}")
+    assert "full_name" not in claim_item and "doc_number" not in claim_item, "La consulta pública expone datos personales"
+    print(f"  [✔] GET /api/claims/{claim_code} (público) -> Estado: {claim_item['status']}, sin datos personales")
+
+    # Consulta como administrador: datos completos
+    status, _, claim_get = get(f"/api/claims/{claim_code}", token=token)
+    claim_item = json.loads(claim_get.decode("utf-8"))["data"]
+    print(f"  [✔] GET /api/claims/{claim_code} (admin) -> Reclamante: {claim_item['full_name']}")
 
     # Estadísticas (con token)
     status, _, stats_raw = get("/api/stats", token=token)

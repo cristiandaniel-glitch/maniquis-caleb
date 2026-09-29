@@ -46,8 +46,13 @@ def handle_create_claim(payload: Dict[str, Any]) -> Union[Dict[str, Any], Tuple[
         return {"success": False, "error": "No se pudo procesar la hoja de reclamación. Intente nuevamente."}, 500
 
 
-def handle_get_claim_detail(claim_code: str) -> Union[Dict[str, Any], Tuple[Dict[str, Any], int]]:
-    """Maneja GET /api/claims/<code_or_all>."""
+# Datos que se muestran a cualquiera que consulte un código (sin datos
+# personales: los códigos son correlativos y se pueden adivinar — Ley 29733).
+PUBLIC_CLAIM_FIELDS = ("claim_code", "claim_type", "status", "created_at")
+
+
+def handle_get_claim_detail(claim_code: str, is_admin: bool = False) -> Union[Dict[str, Any], Tuple[Dict[str, Any], int]]:
+    """Maneja GET /api/claims/<code_or_all>. Sin sesión de administrador solo devuelve el estado."""
     if claim_code == "all":
         claims = get_all_claims()
         return {"success": True, "count": len(claims), "data": claims}
@@ -56,4 +61,6 @@ def handle_get_claim_detail(claim_code: str) -> Union[Dict[str, Any], Tuple[Dict
     if not claim:
         return {"success": False, "error": f"No se encontró ninguna reclamación con el código '{claim_code}'."}, 404
 
+    if not is_admin:
+        claim = {k: claim.get(k) for k in PUBLIC_CLAIM_FIELDS}
     return {"success": True, "data": claim}

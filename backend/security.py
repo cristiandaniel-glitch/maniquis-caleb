@@ -11,10 +11,12 @@ Incluye:
 """
 
 import hashlib
+import hmac
 import html
 import os
 import re
 import secrets
+import threading
 import time
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -24,14 +26,16 @@ FORBIDDEN_EXTENSIONS: Set[str] = {
     ".sh", ".bash", ".log", ".git", ".gitignore", ".yml", ".yaml", ".ini", ".conf"
 }
 
-# Almacén en memoria de tokens de sesión: { token: { "created_at": float, "expires_at": float } }
-_ACTIVE_ADMIN_TOKENS: Dict[str, Dict[str, float]] = {}
+# Secreto para firmar las sesiones de administrador. Se genera al arrancar,
+# antes de crear los procesos de trabajo, así todos lo comparten. Si se define
+# SESSION_SECRET en el entorno, las sesiones sobreviven a los reinicios.
+SESSION_SECRET = (os.environ.get("SESSION_SECRET") or secrets.token_hex(32)).encode()
 
-# Almacén de intentos de login fallidos: { ip: [timestamp1, timestamp2, ...] }
-_FAILED_LOGIN_ATTEMPTS: Dict[str, List[float]] = {}
-
-# Almacén de Rate Limiter: { ip: [timestamp1, timestamp2, ...] }
-_RATE_LIMIT_STORAGE: Dict[str, List[float]] = {}
+# Rate limiter por ventana fija: { ip: [inicio_ventana, conteo] }. Es por
+# proceso (aproximado con varios procesos) y se limpia solo para no crecer.
+_RATE_LIMIT_STORAGE: Dict[Tuple[str, str], List[float]] = {}
+_RATE_LOCK = threading.Lock()
+_RATE_LAST_PRUNE = [0.0]
 
 # Duración del token de sesión (4 horas)
 TOKEN_LIFETIME_SECONDS = 4 * 60 * 60
@@ -65,39 +69,50 @@ def verify_password(password: str) -> bool:
 
 
 def create_admin_session() -> str:
-    """Genera un token criptográfico seguro de 64 caracteres para el administrador."""
-    token = secrets.token_hex(32)
-    now = time.time()
-    _ACTIVE_ADMIN_TOKENS[token] = {
-        "created_at": now,
-        "expires_at": now + TOKEN_LIFETIME_SECONDS
-    }
-    return token
+    """
+    Genera un token de sesión firmado (HMAC-SHA256) con su fecha de expiración.
+    No se guarda en memoria: cualquier proceso del servidor puede validarlo.
+    """
+    expires = int(time.time() + TOKEN_LIFETIME_SECONDS)
+    payload = f"{expires}.{secrets.token_hex(16)}"
+    signature = hmac.new(SESSION_SECRET, payload.encode(), hashlib.sha256).hexdigest()
+    return f"{payload}.{signature}"
 
 
 def validate_admin_token(token: Optional[str]) -> bool:
-    """Verifica si un token de sesión es válido y no ha expirado."""
+    """Verifica la firma del token y que no haya expirado."""
     if not token or not isinstance(token, str):
         return False
-
     token_clean = token.replace("Bearer ", "").strip()
-    if token_clean not in _ACTIVE_ADMIN_TOKENS:
+    parts = token_clean.split(".")
+    if len(parts) != 3 or not parts[0].isdigit():
         return False
-
-    session = _ACTIVE_ADMIN_TOKENS[token_clean]
-    if time.time() > session["expires_at"]:
-        del _ACTIVE_ADMIN_TOKENS[token_clean]
+    payload = f"{parts[0]}.{parts[1]}"
+    expected = hmac.new(SESSION_SECRET, payload.encode(), hashlib.sha256).hexdigest()
+    if not secrets.compare_digest(expected, parts[2]):
         return False
+    return time.time() < int(parts[0])
 
-    return True
+
+# --- Anti fuerza bruta: intentos fallidos guardados en SQLite, compartidos por
+# todos los procesos (así el bloqueo es igual de estricto con varios workers) ---
+
+def _login_db():
+    from backend.database import get_db_connection  # import tardío: evita ciclos
+    return get_db_connection()
+
+
+def ensure_login_attempts_table() -> None:
+    with _login_db() as conn:
+        conn.execute("CREATE TABLE IF NOT EXISTS login_attempts (ip TEXT NOT NULL, ts REAL NOT NULL)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts (ip, ts)")
 
 
 def record_failed_login(ip: str) -> None:
     """Registra un intento fallido de inicio de sesión."""
-    now = time.time()
-    if ip not in _FAILED_LOGIN_ATTEMPTS:
-        _FAILED_LOGIN_ATTEMPTS[ip] = []
-    _FAILED_LOGIN_ATTEMPTS[ip].append(now)
+    with _login_db() as conn:
+        conn.execute("INSERT INTO login_attempts (ip, ts) VALUES (?, ?)", (ip, time.time()))
+        conn.execute("DELETE FROM login_attempts WHERE ts < ?", (time.time() - 86400,))
 
 
 def is_ip_blocked(ip: str, max_attempts: int = 5, lock_seconds: int = 600) -> Tuple[bool, int]:
@@ -106,25 +121,21 @@ def is_ip_blocked(ip: str, max_attempts: int = 5, lock_seconds: int = 600) -> Tu
     Retorna (True, segundos_restantes) o (False, 0).
     """
     now = time.time()
-    if ip not in _FAILED_LOGIN_ATTEMPTS:
-        return False, 0
-
-    # Filtrar intentos en los últimos lock_seconds
-    valid_attempts = [t for t in _FAILED_LOGIN_ATTEMPTS[ip] if now - t < lock_seconds]
-    _FAILED_LOGIN_ATTEMPTS[ip] = valid_attempts
-
-    if len(valid_attempts) >= max_attempts:
-        oldest = valid_attempts[0]
-        remaining = int(lock_seconds - (now - oldest))
+    with _login_db() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) AS n, MIN(ts) AS oldest FROM login_attempts WHERE ip = ? AND ts > ?",
+            (ip, now - lock_seconds),
+        ).fetchone()
+    if row and row["n"] >= max_attempts:
+        remaining = int(lock_seconds - (now - row["oldest"]))
         return True, max(remaining, 1)
-
     return False, 0
 
 
 def clear_failed_logins(ip: str) -> None:
     """Limpia los intentos fallidos tras un login exitoso."""
-    if ip in _FAILED_LOGIN_ATTEMPTS:
-        del _FAILED_LOGIN_ATTEMPTS[ip]
+    with _login_db() as conn:
+        conn.execute("DELETE FROM login_attempts WHERE ip = ?", (ip,))
 
 
 def get_security_headers() -> Dict[str, str]:
@@ -205,17 +216,24 @@ def is_valid_doc_number(doc_number: str) -> bool:
     return bool(re.match(pattern, doc_number.strip()))
 
 
-def check_rate_limit(ip_address: str, max_requests: int = 300, window_seconds: int = 60) -> bool:
-    """Limita la tasa de peticiones por IP."""
+def check_rate_limit(ip_address: str, max_requests: int = 300, window_seconds: int = 60, bucket: str = "api") -> bool:
+    """
+    Limita la tasa de peticiones por IP con una ventana fija (O(1) por petición).
+    `bucket` separa contadores (p. ej. lecturas de la API y envío de formularios).
+    """
     if ip_address in ("127.0.0.1", "::1", "localhost"):
         return True
     now = time.time()
-    if ip_address not in _RATE_LIMIT_STORAGE:
-        _RATE_LIMIT_STORAGE[ip_address] = [now]
-        return True
-
-    timestamps = [t for t in _RATE_LIMIT_STORAGE[ip_address] if now - t < window_seconds]
-    timestamps.append(now)
-    _RATE_LIMIT_STORAGE[ip_address] = timestamps
-
-    return len(timestamps) <= max_requests
+    key = (bucket, ip_address)
+    with _RATE_LOCK:
+        # Limpieza periódica: quitar IPs inactivas para que la memoria no crezca
+        if now - _RATE_LAST_PRUNE[0] > window_seconds:
+            for k in [k for k, v in _RATE_LIMIT_STORAGE.items() if now - v[0] >= window_seconds]:
+                del _RATE_LIMIT_STORAGE[k]
+            _RATE_LAST_PRUNE[0] = now
+        entry = _RATE_LIMIT_STORAGE.get(key)
+        if entry is None or now - entry[0] >= window_seconds:
+            _RATE_LIMIT_STORAGE[key] = [now, 1]
+            return True
+        entry[1] += 1
+        return entry[1] <= max_requests

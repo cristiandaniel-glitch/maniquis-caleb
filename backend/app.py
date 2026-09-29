@@ -9,8 +9,11 @@ import http.server
 import json
 import mimetypes
 import os
+import signal
 import socketserver
+import sys
 import threading
+import time
 import urllib.parse
 from typing import Any, Dict, Optional, Tuple
 
@@ -40,10 +43,12 @@ from backend.routes.stats import handle_get_stats
 from backend.security import (
     FORBIDDEN_EXTENSIONS,
     check_rate_limit,
+    ensure_login_attempts_table,
     get_security_headers,
     is_forbidden_path,
     validate_admin_token,
 )
+from backend.config import DB_PATH
 
 
 mimetypes.add_type("image/webp", ".webp")
@@ -55,6 +60,63 @@ mimetypes.add_type("image/webp", ".webp")
 COMPRESSIBLE = ("text/", "application/javascript", "application/json", "image/svg+xml")
 _GZIP_CACHE: Dict[Tuple[str, float], bytes] = {}
 _GZIP_LOCK = threading.Lock()
+
+
+# Archivos estáticos en memoria: evita leer el disco en cada visita. Se guarda
+# por (ruta, fecha de modificación): si el archivo cambia se vuelve a leer.
+# Los archivos grandes (videos) se siguen leyendo del disco.
+STATIC_CACHE_MAX_FILE = 2 * 1024 * 1024
+STATIC_CACHE_MAX_TOTAL = 64 * 1024 * 1024
+_STATIC_CACHE: Dict[str, Tuple[float, bytes]] = {}
+_STATIC_CACHE_SIZE = [0]
+
+
+def _read_static(path: str, mtime: float, size: int) -> bytes:
+    hit = _STATIC_CACHE.get(path)
+    if hit and hit[0] == mtime:
+        return hit[1]
+    with open(path, "rb") as f:
+        data = f.read()
+    if size <= STATIC_CACHE_MAX_FILE:
+        with _GZIP_LOCK:
+            if _STATIC_CACHE_SIZE[0] + size > STATIC_CACHE_MAX_TOTAL:
+                _STATIC_CACHE.clear()
+                _STATIC_CACHE_SIZE[0] = 0
+            old = _STATIC_CACHE.get(path)
+            if old:
+                _STATIC_CACHE_SIZE[0] -= len(old[1])
+            _STATIC_CACHE[path] = (mtime, data)
+            _STATIC_CACHE_SIZE[0] += len(data)
+    return data
+
+
+# Respuestas públicas de la API (productos, categorías, reseñas, datos legales)
+# guardadas unos segundos. Cualquier cambio (POST/PUT/DELETE) toca el archivo
+# "marca de versión" y todos los procesos descartan su caché al instante.
+API_CACHE_TTL = 30.0
+_API_CACHE: Dict[str, Tuple[float, float, int, bytes, bytes]] = {}
+_API_CACHE_LOCK = threading.Lock()
+_VERSION_FILE = os.path.join(os.path.dirname(os.path.abspath(DB_PATH)), ".api-cache-version")
+
+
+def _data_version() -> float:
+    try:
+        return os.stat(_VERSION_FILE).st_mtime
+    except OSError:
+        return 0.0
+
+
+def bump_data_version() -> None:
+    """Marca que los datos cambiaron: invalida la caché de la API en todos los procesos."""
+    try:
+        with open(_VERSION_FILE, "a"):
+            pass
+        now = time.time()
+        os.utime(_VERSION_FILE, (now, max(now, _data_version() + 0.001)))
+    except OSError:
+        pass
+    with _API_CACHE_LOCK:
+        _API_CACHE.clear()
 
 
 def _gzip_static(path: str, mtime: float, raw: bytes) -> bytes:
@@ -74,6 +136,8 @@ class SecureRequestHandler(http.server.BaseHTTPRequestHandler):
     """Manejador HTTP con soporte para CORS, cabeceras de seguridad y API REST."""
 
     protocol_version = "HTTP/1.1"
+    # Conexiones lentas o abandonadas se cierran a los 10 s (evita que ocupen hilos)
+    timeout = 10
 
     def send_security_headers(self) -> None:
         """Aplica todas las cabeceras HTTP de seguridad."""
@@ -100,17 +164,23 @@ class SecureRequestHandler(http.server.BaseHTTPRequestHandler):
     def accepts_gzip(self) -> bool:
         return "gzip" in (self.headers.get("Accept-Encoding") or "")
 
-    def send_json_response(self, data: Any, status_code: int = 200) -> None:
+    def send_json_response(self, data: Any, status_code: int = 200, _cached: Optional[Tuple[bytes, bytes]] = None) -> None:
         """Envía una respuesta JSON formateada de forma segura."""
-        response_bytes = json.dumps(data, ensure_ascii=False).encode("utf-8")
         path = urllib.parse.urlparse(self.path).path.rstrip("/")
+        if _cached is not None:
+            raw, gz = _cached
+        else:
+            raw = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            gz = b""
         if self.command == "GET" and status_code == 200 and path in self.PUBLIC_CACHEABLE:
             cache_control = "public, max-age=60, stale-while-revalidate=300"
         else:
             cache_control = "no-store"
-        use_gzip = len(response_bytes) > 1024 and self.accepts_gzip()
+        use_gzip = len(raw) > 1024 and self.accepts_gzip()
         if use_gzip:
-            response_bytes = gzip.compress(response_bytes, compresslevel=6)
+            response_bytes = gz or gzip.compress(raw, compresslevel=6)
+        else:
+            response_bytes = raw
         self.send_response(status_code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         if use_gzip:
@@ -176,18 +246,43 @@ class SecureRequestHandler(http.server.BaseHTTPRequestHandler):
         self.send_security_headers()
         self.end_headers()
 
+    def send_cached_api(self, key: str, producer) -> None:
+        """Responde una ruta pública de la API desde la caché (o la genera y guarda)."""
+        version = _data_version()
+        now = time.time()
+        with _API_CACHE_LOCK:
+            hit = _API_CACHE.get(key)
+        if hit and hit[1] == version and now - hit[0] < API_CACHE_TTL:
+            self.send_json_response(None, hit[2], _cached=(hit[3], hit[4]))
+            return
+        data, code = producer()
+        raw = json.dumps(data, ensure_ascii=False).encode("utf-8")
+        gz = gzip.compress(raw, compresslevel=6) if len(raw) > 1024 else b""
+        if code == 200:
+            with _API_CACHE_LOCK:
+                if len(_API_CACHE) > 256:
+                    _API_CACHE.clear()
+                _API_CACHE[key] = (now, version, code, raw, gz)
+        self.send_json_response(None, code, _cached=(raw, gz))
+
     def do_GET(self) -> None:
         """Maneja peticiones GET tanto de la API como de archivos estáticos."""
         client_ip = self.client_address[0]
-        if not check_rate_limit(client_ip, max_requests=RATE_LIMIT_PER_MINUTE):
-            self.send_json_response({"success": False, "error": "Límite de peticiones excedido (Rate Limit). Espere un momento."}, 429)
-            return
-
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path.rstrip("/")
         if not path:
             path = "/"
         query_params = dict(urllib.parse.parse_qsl(parsed.query))
+
+        # Páginas, imágenes, CSS y JS se sirven sin límite por IP: son baratos
+        # (vienen de memoria) y muchos clientes pueden compartir una IP pública
+        # (redes móviles, galerías con Wi-Fi). El límite se aplica a la API.
+        if not path.startswith("/api/"):
+            self.serve_static_file(parsed.path)
+            return
+        if not check_rate_limit(client_ip, max_requests=RATE_LIMIT_PER_MINUTE, bucket="api"):
+            self.send_json_response({"success": False, "error": "Límite de peticiones excedido (Rate Limit). Espere un momento."}, 429)
+            return
 
         # --- Rutas Públicas de la API REST ---
         if path == "/api/health":
@@ -195,8 +290,7 @@ class SecureRequestHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/api/products":
-            res = handle_get_products(query_params)
-            self.send_json_response(res)
+            self.send_cached_api("products?" + parsed.query, lambda: (handle_get_products(query_params), 200))
             return
 
         if path.startswith("/api/products/"):
@@ -209,8 +303,7 @@ class SecureRequestHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/api/categories":
-            res = handle_get_categories()
-            self.send_json_response(res)
+            self.send_cached_api("categories", lambda: (handle_get_categories(), 200))
             return
 
         if path.startswith("/api/categories/"):
@@ -224,14 +317,13 @@ class SecureRequestHandler(http.server.BaseHTTPRequestHandler):
                 return
 
         if path == "/api/legal":
-            res = handle_get_legal_info()
-            self.send_json_response(res)
+            self.send_cached_api("legal", lambda: (handle_get_legal_info(), 200))
             return
 
         # Consultar estado de una reclamación específica (público)
         if path.startswith("/api/claims/") and not path.endswith("/all"):
             claim_code = path[len("/api/claims/"):]
-            res = handle_get_claim_detail(claim_code)
+            res = handle_get_claim_detail(claim_code, is_admin=self.is_authenticated_admin())
             if isinstance(res, tuple):
                 self.send_json_response(res[0], res[1])
             else:
@@ -283,19 +375,25 @@ class SecureRequestHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if path == "/api/reviews":
-            code, res = handle_get_reviews()
-            self.send_json_response(res, code)
+            self.send_cached_api("reviews", lambda: tuple(reversed(handle_get_reviews())))
             return
 
-        # Servir archivo estático seguro
-        self.serve_static_file(parsed.path)
+        self.send_json_response({"success": False, "error": "Ruta no encontrada"}, 404)
 
     def do_POST(self) -> None:
         """Maneja peticiones POST."""
         client_ip = self.client_address[0]
-        if not check_rate_limit(client_ip, max_requests=RATE_LIMIT_PER_MINUTE):
-            self.send_json_response({"success": False, "error": "Demasiadas peticiones."}, 429)
+        # Formularios (reseñas, reclamos, contacto, login): 30 por minuto por IP
+        if not check_rate_limit(client_ip, max_requests=30, bucket="post"):
+            self.send_json_response({"success": False, "error": "Demasiadas peticiones. Espere un minuto e intente de nuevo."}, 429)
             return
+        try:
+            self._do_post(client_ip)
+        finally:
+            if urllib.parse.urlparse(self.path).path.rstrip("/") in ("/api/reviews", "/api/products"):
+                bump_data_version()
+
+    def _do_post(self, client_ip: str) -> None:
 
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path.rstrip("/")
@@ -373,6 +471,12 @@ class SecureRequestHandler(http.server.BaseHTTPRequestHandler):
 
     def do_PUT(self) -> None:
         """Maneja peticiones PUT protegidas."""
+        try:
+            self._do_put()
+        finally:
+            bump_data_version()
+
+    def _do_put(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path.rstrip("/")
 
@@ -398,6 +502,12 @@ class SecureRequestHandler(http.server.BaseHTTPRequestHandler):
 
     def do_DELETE(self) -> None:
         """Maneja peticiones DELETE protegidas."""
+        try:
+            self._do_delete()
+        finally:
+            bump_data_version()
+
+    def _do_delete(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path.rstrip("/")
 
@@ -514,8 +624,7 @@ class SecureRequestHandler(http.server.BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(chunk)
             else:
-                with open(target_path, "rb") as f:
-                    content = f.read()
+                content = _read_static(target_path, stat_info.st_mtime, file_size)
 
                 use_gzip = mime_type.startswith(COMPRESSIBLE) and len(content) > 1024 and self.accepts_gzip()
                 if use_gzip:
@@ -551,27 +660,144 @@ class SecureRequestHandler(http.server.BaseHTTPRequestHandler):
 
 
 class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
-    """Servidor HTTP multihilo para atender peticiones concurrentes."""
+    """
+    Servidor HTTP multihilo para atender peticiones concurrentes.
+
+    - request_queue_size: "sala de espera" del sistema operativo. Con el valor
+      por defecto (5) las visitas simultáneas eran rechazadas y el navegador
+      reintentaba tras 1 s, 3 s...
+    - MAX_THREADS: tope de conexiones atendidas a la vez por proceso; las
+      demás esperan en la cola en vez de agotar la memoria.
+    """
     daemon_threads = True
     allow_reuse_address = True
+    request_queue_size = 1024
+    MAX_THREADS = int(os.environ.get("MAX_THREADS", 256))
+
+    def __init__(self, *args, **kwargs):
+        self._slots = threading.BoundedSemaphore(self.MAX_THREADS)
+        super().__init__(*args, **kwargs)
+
+    def process_request(self, request, client_address):
+        self._slots.acquire()
+        try:
+            super().process_request(request, client_address)
+        except Exception:
+            self._slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._slots.release()
+
+    def handle_error(self, request, client_address):
+        # Clientes que cortan la conexión a mitad (muy común en celulares) no
+        # son errores del servidor: no llenar la consola con trazas.
+        exc = sys.exc_info()[1]
+        if isinstance(exc, (ConnectionResetError, BrokenPipeError, TimeoutError, OSError)):
+            return
+        super().handle_error(request, client_address)
+
+
+def _worker_count() -> int:
+    """Procesos de trabajo: uno por núcleo (máx. 8). WORKERS=1 para un solo proceso."""
+    env = os.environ.get("WORKERS")
+    if env and env.isdigit() and int(env) > 0:
+        return int(env)
+    return max(1, min(os.cpu_count() or 1, 8))
+
+
+def _prepare_database() -> None:
+    """Tareas de base de datos que antes se repetían en cada visita."""
+    from backend.routes.reviews import ensure_reviews_table
+    try:
+        ensure_reviews_table()
+        ensure_login_attempts_table()
+    except Exception as e:  # la web sigue funcionando aunque falle
+        print(f"[!] Aviso al preparar la base de datos: {e}")
 
 
 def run_server() -> None:
-    """Inicia el servidor web."""
+    """
+    Inicia el servidor web.
+
+    En Linux/macOS se crean varios procesos que comparten el mismo puerto
+    (uno por núcleo): el sistema reparte las visitas entre ellos, así el sitio
+    aprovecha todo el procesador. En Windows se usa un solo proceso.
+    """
+    _prepare_database()
     server_address = (HOST, PORT)
     httpd = ThreadedHTTPServer(server_address, SecureRequestHandler)
+    workers = _worker_count() if hasattr(os, "fork") else 1
+
     print("=" * 65)
     print(f"🚀 SERVIDOR INICIADO: MANIQUÍ STUDIO")
     print(f"📡 URL Local: http://localhost:{PORT}")
+    print(f"⚙️  Procesos: {workers}  ·  hasta {ThreadedHTTPServer.MAX_THREADS} conexiones simultáneas por proceso")
     print(f"🛡️  Seguridad: Autenticación PBKDF2, Tokens y Bloqueo Anti-Ataques ACTIVOS")
     print(f"⚖️  Libro de Reclamaciones: /api/claims y formulario integrado")
     print(f"📂 Raíz estática: {STATIC_DIR}")
     print("=" * 65)
+
+    if workers == 1:
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            print("\n[*] Deteniendo servidor de forma segura...")
+        finally:
+            httpd.server_close()
+            print("[✔] Servidor detenido.")
+        return
+
+    children = []
+
+    def spawn() -> int:
+        pid = os.fork()
+        if pid == 0:  # proceso hijo: atiende visitas hasta que lo detengan
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
+            signal.signal(signal.SIGTERM, lambda *_: os._exit(0))
+            try:
+                httpd.serve_forever()
+            finally:
+                os._exit(0)
+        return pid
+
+    for _ in range(workers):
+        children.append(spawn())
+
+    stopping = [False]
+
+    def stop(*_):
+        stopping[0] = True
+
+    signal.signal(signal.SIGINT, stop)
+    signal.signal(signal.SIGTERM, stop)
     try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
+        # Si un proceso muere por un error inesperado, se reemplaza solo
+        while not stopping[0]:
+            try:
+                pid, _status = os.waitpid(-1, os.WNOHANG)
+            except ChildProcessError:
+                pid = 0
+            if pid and pid in children and not stopping[0]:
+                children.remove(pid)
+                children.append(spawn())
+                print(f"[!] Un proceso del servidor se reinició automáticamente (pid {pid}).")
+            time.sleep(0.5)
+    finally:
         print("\n[*] Deteniendo servidor de forma segura...")
-        httpd.shutdown()
+        for pid in children:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+        for pid in children:
+            try:
+                os.waitpid(pid, 0)
+            except ChildProcessError:
+                pass
         httpd.server_close()
         print("[✔] Servidor detenido.")
 
