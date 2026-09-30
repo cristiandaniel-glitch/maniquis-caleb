@@ -65,6 +65,13 @@
     const quoteMsg = (p, name) => `Hola, quiero cotizar: ${name} (código ${p.sku}).`;
     const waLink = (text) => `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(text)}`;
 
+    // Cambia un parámetro de la dirección sin recargar ni tocar los demás
+    function setQuery(key, value) {
+        const u = new URL(location.href);
+        if (value) u.searchParams.set(key, value); else u.searchParams.delete(key);
+        history.replaceState(history.state, "", u.pathname + u.search + u.hash);
+    }
+
     // Foto del producto; si no tiene, una genérica del catálogo
     function imgSrc(url) {
         return url || "/assets/productos/maniqui-femenino-abstracto-blanco.webp";
@@ -195,15 +202,48 @@
         loaded: null,
         filter: "all",
 
+        // El catálogo se guarda en la pestaña: al recargar (F5) se muestra al
+        // instante, sin vitrina vacía, y por detrás se confirma con el servidor;
+        // si algo cambió (p. ej. el dueño quitó un producto), se actualiza solo.
         load() {
             if (!this.loaded) {
-                this.loaded = Promise.all([api("/api/categories"), api("/api/products")]).then(([cats, prods]) => {
-                    this.categories = (cats.data || []).filter((c) => c.is_active !== 0);
-                    this.products = (prods.data || []).filter((p) => p.is_active !== 0);
-                });
-                this.loaded.catch(() => { this.loaded = null; });
+                const KEY = "caleb-catalogo-v1";
+                let cached = null;
+                try { cached = sessionStorage.getItem(KEY); } catch (e) { /* sin almacenamiento */ }
+                const fresh = Promise.all([api("/api/categories"), api("/api/products")])
+                    .then(([cats, prods]) => ({ cats: cats.data || [], prods: prods.data || [] }));
+                const save = (raw) => { try { sessionStorage.setItem(KEY, raw); } catch (e) { /* sin almacenamiento */ } };
+                let data = null;
+                try { data = cached && JSON.parse(cached); } catch (e) { data = null; }
+                if (data && Array.isArray(data.prods) && data.prods.length) {
+                    this.apply(data);
+                    this.loaded = Promise.resolve();
+                    fresh.then((d) => {
+                        const raw = JSON.stringify(d);
+                        if (raw === cached) return;
+                        save(raw);
+                        this.apply(d);
+                        this.refresh();
+                    }).catch(() => { /* se queda con lo guardado */ });
+                } else {
+                    this.loaded = fresh.then((d) => { save(JSON.stringify(d)); this.apply(d); });
+                    this.loaded.catch(() => { this.loaded = null; });
+                }
             }
             return this.loaded;
+        },
+
+        apply({ cats, prods }) {
+            this.categories = cats.filter((c) => c.is_active !== 0);
+            this.products = prods.filter((p) => p.is_active !== 0);
+        },
+
+        // Vuelve a pintar lo que ya está en pantalla con los datos nuevos
+        refresh() {
+            if (!this.shown) return;
+            this.renderChips();
+            this.renderGrid();
+            Showcase.update(this.products);
         },
 
         lowestPrice(catId) { // (sin uso mientras no se publiquen precios)
@@ -248,6 +288,7 @@
             try {
                 await this.load();
             } catch (e) {
+                Showcase.fail(e.message);
                 grid.replaceChildren(el("li", { class: "grid-empty" }, [
                     el("p", { text: e.message }),
                     el("p", {}, ["Mientras tanto, puedes ", el("a", { href: waLink("Hola, quiero ver el catálogo de maniquíes."), target: "_blank", rel: "noopener", text: "pedir el catálogo por WhatsApp" }), "."]),
@@ -259,6 +300,7 @@
             this.renderChips();
             this.renderGrid();
             Showcase.init(this.products, cat ? cat.id : null);
+            this.shown = true;
         },
 
         renderChips() {
@@ -268,7 +310,7 @@
                 onclick: () => {
                     this.filter = id;
                     const slug = id === "all" ? "" : this.categories.find((c) => c.id === id).slug;
-                    history.replaceState(null, "", slug ? `/catalogo.html?linea=${slug}` : "/catalogo.html");
+                    setQuery("linea", slug);
                     this.renderChips();
                     this.renderGrid();
                 },
@@ -415,7 +457,10 @@
         init(products, catId) {
             if (!$("#showcase")) return;
             this.items = products.slice();
-            const start = catId ? Math.max(0, this.items.findIndex((p) => p.category_id === catId)) : 0;
+            // Si la dirección trae ?producto=…, se vuelve a ese (F5 no te regresa al primero)
+            const wanted = new URLSearchParams(location.search).get("producto");
+            const byUrl = wanted ? this.items.findIndex((p) => p.slug === wanted) : -1;
+            const start = byUrl >= 0 ? byUrl : catId ? Math.max(0, this.items.findIndex((p) => p.category_id === catId)) : 0;
             $("#sc-total").textContent = String(this.items.length);
             this.cache = new Map();
             const warmAll = () => this.items.forEach((p) => this.preload(p));
@@ -435,7 +480,36 @@
                 if (e.key === "ArrowLeft") $("#sc-prev").click();
                 if (e.key === "ArrowRight") $("#sc-next").click();
             });
+            // Primer pintado: el color de fondo entra directo (sin transición) y
+            // recién ahí se muestra la vitrina, ya completa
+            const box = $("#showcase");
+            box.classList.add("no-bg-anim");
             this.render(this.items[start], false);
+            box.classList.remove("sc-loading");
+            box.removeAttribute("aria-busy");
+            requestAnimationFrame(() => requestAnimationFrame(() => box.classList.remove("no-bg-anim")));
+        },
+
+        // Datos nuevos del servidor: se queda en el mismo producto si sigue existiendo
+        update(products) {
+            if (!products.length) return;
+            const current = this.items[this.index];
+            this.items = products.slice();
+            $("#sc-total").textContent = String(this.items.length);
+            const keep = current ? this.items.find((p) => p.slug === current.slug) : null;
+            this.render(keep || this.items[Math.min(this.index, this.items.length - 1)], false);
+        },
+
+        // Sin conexión o sin datos: se muestra el aviso en lugar de la vitrina vacía
+        fail(message) {
+            const box = $("#showcase");
+            if (!box) return;
+            box.classList.remove("sc-loading");
+            box.removeAttribute("aria-busy");
+            box.classList.add("is-failed");
+            $("#sc-name").textContent = "No pudimos cargar el catálogo";
+            $("#sc-desc").textContent = `${message} También puedes pedirlo por WhatsApp.`;
+            $("#sc-wa").href = waLink("Hola, quiero ver el catálogo de maniquíes.");
         },
 
         // Descarga y decodifica una imagen una sola vez; devuelve una promesa
@@ -561,6 +635,7 @@
                 })));
                 // Contador y vista previa del siguiente producto
                 $("#sc-pos").textContent = String(this.index + 1);
+                setQuery("producto", this.index === 0 ? "" : p.slug);
                 const nxt = this.items[(this.index + 1) % this.items.length];
                 $("#sc-next-img").src = imgSrc(nxt.image_url);
                 $("#sc-next").setAttribute("aria-label", `Siguiente producto: ${plain(nxt.name)}`);
@@ -675,15 +750,16 @@
     // Crea una rueda para un escenario (#ring-stage en Inicio, #about-ring en Nosotros)
     const makeRing = (stageSel) => ({
         angle: 0,          // giro actual de la rueda, en grados
+        tilt: -13,         // inclinación: la rueda se ve ovalada, con las de atrás arriba
+        shiftY: 0,         // desplazamiento para que las de atrás no se corten arriba
         target: null,      // ángulo al que va cuando se usan las flechas
         visible: true,
         mounted: false,
 
         mount(list) {
             this.list = list;
-            this.items = $$(":scope > li", list).filter((li) => li.firstElementChild);
-            if (!this.items.length) return;
-            this.step = 360 / this.items.length;
+            this.all = $$(":scope > li", list).filter((li) => li.firstElementChild);
+            if (!this.all.length) return;
             this.layout();
             if (this.mounted) return;
             this.mounted = true;
@@ -691,24 +767,105 @@
             this.start();
         },
 
-        // Radio del círculo según el ancho de tarjeta, con aire entre ellas
+        // Rueda ovalada con 9 productos (11 en pantallas anchas), vista un poco desde
+        // arriba: las de atrás se ven más arriba, más chicas y en sombra. Según el
+        // ancho disponible se calcula el tamaño de las tarjetas y el radio para que:
+        //  1) la de adelante y las cercanas (hasta ±62°) nunca se tapen entre sí;
+        //  2) toda la rueda quepa a lo ancho dentro del escenario;
+        //  3) el alto del escenario alcance para que nada se corte arriba ni abajo.
         layout() {
             const stage = $(stageSel);
-            const cw = parseFloat(getComputedStyle(stage).getPropertyValue("--cw")) || 250;
-            // Con pocas tarjetas se separan; con muchas, el radio se limita para no salirse de pantalla
-            this.radius = Math.round(Math.min((cw / 2) / Math.tan(Math.PI / this.items.length) * 1.65, 880));
-            this.items.forEach((li, i) => {
-                li.style.transform = `rotateY(${i * this.step}deg) translateZ(${this.radius}px)`;
+            stage.style.removeProperty("--cw");
+            stage.style.removeProperty("--ch");
+            const cs = getComputedStyle(stage);
+            const first = this.all[0];
+            const baseW = first.offsetWidth || 250;
+            const ratio = (first.offsetHeight || baseW * 1.56) / baseW;
+            const p = parseFloat(cs.perspective) || 1000;
+            const half = stage.clientWidth / 2 - 12;
+            const n = Math.min(this.all.length, stage.clientWidth >= 900 ? 11 : 9);
+            const st = 2 * Math.PI / n;
+            const GAP = 16;
+            const NEAR = 62 * Math.PI / 180;
+            const edges = (R, cw, th) => [-1, 1].map((sgn) => {
+                const x = R * Math.sin(th) + sgn * (cw / 2) * Math.cos(th);
+                const z = R * Math.cos(th) - R - sgn * (cw / 2) * Math.sin(th);
+                return x * p / (p - z);
+            }).sort((u, v) => u - v);
+            const fits = (R, cw) => {
+                for (let f = 0; f < 4; f += 1) {
+                    const phi = (f / 4) * st;
+                    let prev = null;
+                    for (let k = -n; k <= n; k += 1) {
+                        const th = phi + k * st;
+                        if (Math.abs(th) > NEAR) continue;
+                        const e = edges(R, cw, th);
+                        if (prev && e[0] < prev[1] + GAP) return false;
+                        prev = e;
+                    }
+                }
+                return true;
+            };
+            const extent = (R, cw) => {
+                let m = 0;
+                for (let a = 0; a <= 180; a += 2) m = Math.max(m, Math.abs(edges(R, cw, a * Math.PI / 180)[1]));
+                return m;
+            };
+            let cw = baseW, R = 0;
+            for (; cw >= 90; cw -= 4) {
+                R = cw / 2;
+                while (!fits(R, cw) && R < 4000) R += 2;
+                if (extent(R, cw) <= half) break;
+            }
+            cw = Math.max(cw, 90);
+            if (cw !== baseW) {
+                stage.style.setProperty("--cw", `${cw}px`);
+                stage.style.setProperty("--ch", `${Math.round(cw * ratio)}px`);
+            }
+            this.radius = Math.round(R);
+            this.items = this.all.slice(0, n);
+            this.step = 360 / n;
+            this.all.forEach((li, i) => {
+                li.hidden = i >= n;
+                if (i < n) li.style.transform = `rotateY(${i * this.step}deg) translateZ(${this.radius}px)`;
             });
+            this.fitHeight(stage);
+        },
+
+        // Mide la rueda completa girando (sin pintar) y ajusta el alto del escenario
+        // y la posición vertical para que ninguna tarjeta se corte
+        fitHeight(stage) {
+            const saved = this.angle;
+            const MARGIN = 20;
+            this.shiftY = 0;
+            stage.style.height = "";
+            for (let pass = 0; pass < 3; pass += 1) {
+                const S = stage.getBoundingClientRect();
+                let top = Infinity, bottom = -Infinity;
+                for (let a = 0; a < 360; a += this.step / 3) {
+                    this.angle = a;
+                    this.apply();
+                    for (const li of this.items) {
+                        const r = li.getBoundingClientRect();
+                        top = Math.min(top, r.top - S.top);
+                        bottom = Math.max(bottom, r.bottom - S.top);
+                    }
+                }
+                this.shiftY += MARGIN - top;
+                stage.style.height = `${Math.ceil(bottom - top + 2 * MARGIN)}px`;
+            }
+            this.angle = saved;
             this.apply();
         },
 
         apply() {
-            this.list.style.transform = `translateZ(${-this.radius}px) rotateX(-5deg) rotateY(${this.angle}deg)`;
-            // La tarjeta de adelante brilla; las de atrás se oscurecen
+            this.list.style.transform = `translateY(${this.shiftY}px) translateZ(${-this.radius}px) rotateX(${this.tilt}deg) rotateY(${this.angle}deg)`;
+            // La de adelante brilla; hacia los lados se oscurecen y las de atrás
+            // desaparecen (así ninguna asoma detrás de las de adelante)
             this.items.forEach((li, i) => {
                 const a = ((i * this.step + this.angle) % 360 + 360) % 360;
-                const facing = (Math.cos(a * Math.PI / 180) + 1) / 2;
+                const cos = Math.cos(a * Math.PI / 180);
+                const facing = (cos + 1) / 2;
                 // Oscurecer con una capa y opacidad (lo procesa la tarjeta gráfica);
                 // un filtro de brillo por cuadro es muy pesado en celulares.
                 li.style.setProperty("--shade", (0.65 * (1 - facing)).toFixed(3));
@@ -833,8 +990,11 @@
             const { n, avg } = this.stats();
             if (!n) return;
             const best = this.all.find((r) => Number(r.rating) === 5 && plain(r.comment).length > 60) || this.all.find((r) => Number(r.rating) >= 4) || this.all[0];
+            $("#home-quote-empty").hidden = true;
+            $("#home-quote-real").hidden = false;
+            $("#home-quote-cta").textContent = "Leer todas las reseñas";
             $("#home-score").textContent = avg.toFixed(1).replace(".", ",");
-            $("#home-count").textContent = `${n}`;
+            $("#home-count").textContent = n === 1 ? "1 cliente" : `${n} clientes`;
             $("#home-quote-text").textContent = plain(best.comment);
             $("#home-quote-author").textContent = [plain(best.name), plain(best.boutique) || plain(best.city)].filter(Boolean).join(", ");
         },
@@ -857,7 +1017,7 @@
             const { n, avg, dist } = this.stats();
             $("#rev-avg").textContent = n ? avg.toFixed(1).replace(".", ",") : "—";
             // El promedio y el total usan TODAS las reseñas (no solo las que se muestran)
-            $("#rev-total").textContent = n === 1 ? "Promedio de 1 reseña" : `Promedio de ${n} reseñas`;
+            $("#rev-total").textContent = !n ? "Todavía no hay reseñas" : n === 1 ? "Promedio de 1 reseña" : `Promedio de ${n} reseñas`;
             $("#rev-dist").replaceChildren(...dist.map(([star, count]) => {
                 const bar = el("span");
                 bar.style.width = n ? `${(count / n) * 100}%` : "0";

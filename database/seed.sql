@@ -55,11 +55,5 @@ INSERT OR REPLACE INTO products (id, category_id, name, slug, sku, description, 
 (39, 6, 'Cremallera para pared', 'cremallera-pared', 'ACC-007', 'Rieles ranurados para pared, en varios largos y colores. Para instalar repisas, brazos y ganchos.', 'Metal', 'Blanco, negro y gris', '', 0.00, 0, '/assets/productos/cremallera-pared.webp', 0, 1),
 (40, 4, 'Maniquí colgante femenino', 'maniqui-colgante-femenino', 'CLG-009', 'Maniquí femenino de cuerpo entero para colgar, forrado en tela y con gancho metálico en el cuello.', 'Tela', 'Crudo', '', 0.00, 0, '/assets/productos/maniqui-colgante-femenino.webp', 0, 1);
 
--- 3. Mensaje inicial
-INSERT OR IGNORE INTO contact_messages (id, name, email, phone, subject, message, status) VALUES
-(1, 'Valeria Morales', 'valeria.boutique@ejemplo.pe', '+51 987 654 321', 'Cotización de 6 maniquíes para tienda en Cusco', 'Hola Novedades Caleb, deseo cotizar 6 maniquíes con entrega en Galería La Exitosa.', 'unread');
-
--- 4. Suscriptores iniciales
-INSERT OR IGNORE INTO subscribers (id, email, status) VALUES
-(1, 'contacto@estudiomoda.pe', 'active'),
-(2, 'vitrinismo.peru@tendencias.pe', 'active');
+-- Sin mensajes, reclamos, reseñas ni suscriptores de ejemplo: la tienda empieza
+-- vacía y solo guarda lo que envían los clientes reales.

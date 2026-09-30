@@ -4,6 +4,8 @@ Cumple con la normativa legal de protección al consumidor y comercio electróni
 """
 
 import datetime
+import sqlite3
+import time
 from typing import Any, Dict, List, Optional
 from backend.database import execute_mutation, query_all, query_one
 from backend.security import (
@@ -19,11 +21,11 @@ def generate_claim_code(claim_type: str) -> str:
     year = datetime.datetime.now().year
     prefix = "REC" if claim_type == "Reclamo" else "QUE"
     
-    # Obtener el último número del año
-    sql = "SELECT COUNT(*) as total FROM claims_book WHERE claim_code LIKE ?"
+    # Siguiente al número más alto del año (no se repite aunque se borre alguno)
+    sql = "SELECT MAX(CAST(substr(claim_code, 10) AS INTEGER)) AS last FROM claims_book WHERE claim_code LIKE ?"
     res = query_one(sql, (f"{prefix}-{year}-%",))
-    count = (res["total"] if res else 0) + 1
-    return f"{prefix}-{year}-{count:04d}"
+    last = (res["last"] if res and res["last"] is not None else 0)
+    return f"{prefix}-{year}-{last + 1:04d}"
 
 
 def create_claim(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -66,8 +68,6 @@ def create_claim(data: Dict[str, Any]) -> Dict[str, Any]:
     if not consumer_request or len(consumer_request) < 5:
         raise ValueError("Debe especificar su pedido o solución esperada.")
 
-    claim_code = generate_claim_code(claim_type)
-
     sql = """
         INSERT INTO claims_book (
             claim_code, claim_type, full_name, doc_type, doc_number,
@@ -81,12 +81,22 @@ def create_claim(data: Dict[str, Any]) -> Dict[str, Any]:
             ?, ?, 'Pendiente'
         )
     """
-    execute_mutation(sql, (
-        claim_code, claim_type, full_name, doc_type, doc_number,
-        email, phone, address, is_minor, guardian_name,
-        contracted_good, amount_claimed, good_description,
-        claim_description, consumer_request
-    ))
+    # Varios procesos atienden a la vez: si dos reclamos toman el mismo número,
+    # la restricción UNIQUE rechaza el segundo y se reintenta con el siguiente.
+    for attempt in range(8):
+        claim_code = generate_claim_code(claim_type)
+        try:
+            execute_mutation(sql, (
+                claim_code, claim_type, full_name, doc_type, doc_number,
+                email, phone, address, is_minor, guardian_name,
+                contracted_good, amount_claimed, good_description,
+                claim_description, consumer_request
+            ))
+            break
+        except sqlite3.IntegrityError:
+            if attempt == 7:
+                raise
+            time.sleep(0.02 * (attempt + 1))
 
     return {
         "claim_code": claim_code,

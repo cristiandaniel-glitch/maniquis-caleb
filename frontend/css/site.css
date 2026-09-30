@@ -793,6 +793,8 @@ main { overflow-x: clip; }
 @keyframes social-in { from { transform: translate(calc(-100% - 22px), -50%); } }
 /* En Inicio aparece después de la pantalla de carga */
 .is-loading .social-float { animation-play-state: paused; }
+/* Al recargar o volver a una página, las burbujas ya están en su lugar (sin parpadeo) */
+.redes-vistas .social-float { animation: none; }
 @media (max-width: 760px) {
     .social-float { left: 10px; gap: 10px; }
     .social-float a { width: 44px; height: 44px; }
@@ -835,8 +837,11 @@ main { overflow-x: clip; }
 .ring .lineup-label { transition: opacity .3s; }
 
 @media (max-width: 760px) {
-    .ring-stage { --cw: 170px; --ch: 270px; perspective: 1000px; }
-    [data-page="inicio"] .lineup-label strong { font-size: 1.3rem; }
+    /* Tarjetas proporcionales a la pantalla: así entran más en la rueda sin encimarse */
+    .ring-stage { --cw: clamp(118px, 31vw, 170px); --ch: calc(var(--cw) * 1.58); perspective: 1000px; }
+    [data-page="inicio"] .lineup-label strong { font-size: clamp(1rem, 4.2vw, 1.3rem); }
+    .ring .lineup-label { left: 10px; right: 10px; bottom: 10px; }
+    .ring .lineup-label span { font-size: .75rem; }
 }
 
 
@@ -1579,3 +1584,26 @@ body { font-size: 1.125rem; }
 /* Enlace del dueño al panel: discreto, al final del pie */
 .footer-admin { margin-left: 10px; color: var(--piedra-clara); text-decoration: underline; text-underline-offset: 3px; }
 .footer-admin:hover { color: var(--fibra); }
+
+/* Vitrina mientras llegan los datos: nada a medio llenar ("1 / 1", cuadro
+   vacío de "Siguiente"). Si tarda, aparece un aviso discreto. */
+.showcase.sc-loading .sc-stage, .showcase.sc-loading .sc-nav { visibility: hidden; }
+.showcase.sc-loading::after {
+    content: "Cargando catálogo…"; position: absolute; inset: 0; display: grid; place-items: center;
+    font-family: var(--f-text); font-size: 1rem; opacity: 0; animation: sc-wait .3s .4s ease forwards;
+}
+@keyframes sc-wait { to { opacity: .8; } }
+.showcase.no-bg-anim { transition: none; }
+/* Si falla la carga solo quedan el aviso y el botón de WhatsApp */
+.showcase.is-failed .sc-product, .showcase.is-failed .sc-side, .showcase.is-failed .sc-nav, .showcase.is-failed .sc-btn-ghost { display: none; }
+/* Paginador del catálogo en celular: centrado y simétrico. El texto va en su
+   propia línea y las dos flechas debajo, al centro (lejos del botón de WhatsApp). */
+@media (max-width: 760px) {
+    .catalog-page .pager { justify-content: center; flex-wrap: wrap; gap: 10px 32px; padding-right: 0; }
+    .catalog-page .pager-info { order: -1; flex-basis: 100%; }
+}
+/* Rueda: el texto de cada tarjeta crece o se achica con la tarjeta
+   (site.js ajusta --cw para que entren 9 productos en cualquier pantalla) */
+.ring .lineup-label strong, [data-page="inicio"] .ring .lineup-label strong { font-size: clamp(.8rem, calc(var(--cw) * .11), 1.75rem); }
+.ring .lineup-label span { font-size: clamp(.62rem, calc(var(--cw) * .052), .9rem); }
+.ring .lineup-label { left: clamp(8px, calc(var(--cw) * .064), 16px); right: clamp(8px, calc(var(--cw) * .064), 16px); bottom: clamp(8px, calc(var(--cw) * .064), 16px); }

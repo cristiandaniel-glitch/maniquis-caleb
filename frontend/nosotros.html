@@ -18,7 +18,14 @@
     <link rel="icon" type="image/png" sizes="64x64" href="/assets/logo/favicon-64.png">
     <link rel="apple-touch-icon" href="/assets/logo/apple-touch-icon.png">
     <link rel="stylesheet" href="/css/site.css">
-    <script>document.documentElement.classList.add("js");</script>
+    <script>
+        // La entrada animada de las burbujas de redes solo la primera vez en esta pestaña
+        (function () {
+            var root = document.documentElement;
+            root.classList.add("js");
+            try { if (sessionStorage.getItem("caleb-redes") === "1") root.classList.add("redes-vistas"); sessionStorage.setItem("caleb-redes", "1"); } catch (e) {}
+        })();
+    </script>
 </head>
 <body data-page="nosotros">
 <a class="skip-link" href="#contenido">Saltar al contenido</a>

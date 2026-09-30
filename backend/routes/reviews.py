@@ -24,24 +24,7 @@ def ensure_reviews_table():
     );
     """
     execute_mutation(sql)
-
-    # Si está vacía, insertar las 6 reseñas iniciales oficiales
-    rows = query_all("SELECT COUNT(*) as count FROM reviews;")
-    if rows and rows[0]["count"] == 0:
-        initial_reviews = [
-            ("Dan", "", "Cusco", "Maniquí femenino", 5,
-             "Me atendieron con mucha paciencia y me mostraron varios modelos hasta encontrar el ideal para mi vitrina. El maniquí llegó impecable y le dio otra vida a la tienda.", 1),
-            ("Rodry", "", "Cusco", "Colgadores y percheros", 4,
-             "Buena variedad de colgadores y percheros, y el trato es muy amable. Me respondieron rápido por WhatsApp y todo llegó tal como lo pedí.", 1),
-            ("Cris", "", "Cusco", "Busto de sastre", 5,
-             "El busto de sastre es firme y de muy buen acabado; lo uso todos los días en mi taller. Se nota que les importa que el cliente se vaya contento.", 1),
-        ]
-        for rev in initial_reviews:
-            execute_mutation(
-                """INSERT INTO reviews (name, boutique, city, product_model, rating, comment, is_verified) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?);""",
-                rev
-            )
+    # Sin reseñas de ejemplo: solo se muestran las que escriben los clientes.
 
 
 def handle_get_reviews() -> Tuple[int, Dict[str, Any]]:

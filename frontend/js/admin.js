@@ -323,8 +323,12 @@
     });
 
     // ------------------------------------------------------------ arranque
-    if (store.get()) {
-        api("/api/admin/verify").then(showDashboard).catch(() => showLogin());
+    const saved = store.get();
+    if (saved) {
+        // Si mientras tanto el dueño ya ingresó de nuevo, esta respuesta (del
+        // permiso anterior) no debe borrar la sesión nueva
+        api("/api/admin/verify").then(() => { if (store.get() === saved) showDashboard(); })
+            .catch(() => { if (store.get() === saved) showLogin(); });
     } else {
         showLogin();
     }

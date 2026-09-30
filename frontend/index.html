@@ -172,12 +172,22 @@
     <div class="band band-quote">
         <div class="wrap quote-layout">
             <div class="quote-content" id="home-quote" data-reveal="left">
-                <p class="quote-score"><span class="quote-stars" aria-hidden="true">★★★★★</span> <span id="home-score">—</span> de 5, según <span id="home-count">nuestros</span> clientes</p>
-                <blockquote>
-                    <p id="home-quote-text">Los maniquíes transformaron la vitrina de mi tienda.</p>
-                    <footer id="home-quote-author">Cliente de Cusco</footer>
-                </blockquote>
-                <a class="btn btn-tape quote-cta" href="/resenas.html">Leer todas las reseñas</a>
+                <!-- Sin reseñas todavía: invitación (nunca una cita inventada).
+                     site.js la cambia por la mejor reseña real cuando existan. -->
+                <div id="home-quote-empty">
+                    <p class="quote-score">Reseñas de clientes</p>
+                    <blockquote class="quote-empty">
+                        <p>¿Ya compraste en el stand? Sé el primero en contarnos cómo te fue.</p>
+                    </blockquote>
+                </div>
+                <div id="home-quote-real" hidden>
+                    <p class="quote-score"><span class="quote-stars" aria-hidden="true">★★★★★</span> <span id="home-score">—</span> de 5, según <span id="home-count"></span></p>
+                    <blockquote>
+                        <p id="home-quote-text"></p>
+                        <footer id="home-quote-author"></footer>
+                    </blockquote>
+                </div>
+                <a class="btn btn-tape quote-cta" id="home-quote-cta" href="/resenas.html">Escribir una reseña</a>
             </div>
             <div class="quote-figure" data-reveal="right" aria-hidden="true">
                 <img decoding="async" src="/assets/capas/busto-sastre.webp" alt="" loading="lazy">
