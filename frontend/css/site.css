@@ -1429,3 +1429,40 @@ body { font-size: 1.125rem; }
 @media (min-width: 761px) and (max-width: 960px) { .sc-stage, .sc-nav { padding-left: 100px; } }
 @media (max-width: 760px) { .sc-product { height: 34vh; } .sc-name { font-size: 2.2rem; } .sc-desc { margin-top: 10px; } .sc-stage { gap: 16px; } }
 @media (max-width: 760px) and (max-height: 780px) { .sc-product { height: 27vh; } .sc-name { font-size: 2rem; } }
+
+/* ------------------------------ Pie compacto ------------------------------ */
+.site-footer { padding: 28px 0 20px; font-size: .85rem; }
+.site-footer .footer-grid { grid-template-columns: 1.6fr 1fr 1.2fr auto; gap: 16px 32px; }
+.site-footer .footer-brand { font-size: 1.4rem; margin-bottom: 2px; }
+.site-footer .muted { font-size: .8rem; }
+.site-footer .footer-contact { margin-top: 6px; font-size: .78rem; line-height: 1.45; }
+.site-footer .footer-social { margin-top: 6px; }
+.site-footer .footer-social a { font-size: .8rem; }
+.site-footer .footer-nav { gap: 2px; }
+.site-footer .footer-nav a { font-size: .82rem; padding: 3px 0; }
+.site-footer .footer-title { font-size: .72rem; margin-bottom: 2px; }
+.site-footer .claims-badge { padding: 6px 10px 6px 8px; }
+.site-footer .claims-badge svg { width: 28px; height: 28px; }
+/* Como el texto legal, el aviso deja libre la esquina del botón flotante de WhatsApp */
+.site-footer .footer-notice { margin-top: 14px; padding-right: calc(var(--gutter) + 72px); }
+.site-footer .footer-notice p { padding: 6px 12px; font-size: .72rem; line-height: 1.45; }
+.site-footer .footer-legal { margin-top: 10px; padding-top: 10px; font-size: .72rem; }
+.site-footer .footer-legal p { margin: 0; }
+/* Tablet: la marca arriba y debajo tres columnas (Tienda, Legal, Libro de Reclamaciones) */
+@media (max-width: 1100px) {
+    .site-footer .footer-grid { grid-template-columns: 1fr 1fr auto; }
+    .site-footer .footer-grid > :first-child { grid-column: 1 / -1; }
+}
+/* Celular: una columna con los enlaces en línea */
+@media (max-width: 600px) {
+    .site-footer { padding-bottom: 20px; }
+    .site-footer .footer-grid { grid-template-columns: 1fr; gap: 12px; }
+    .site-footer .footer-grid > :last-child { justify-self: start; }
+    /* Enlaces en línea: menos alto sin achicar la zona táctil */
+    .site-footer .footer-nav { display: flex; flex-wrap: wrap; gap: 0 18px; }
+    .site-footer .footer-nav .footer-title { flex-basis: 100%; }
+    .site-footer .footer-nav a { padding: 4px 0; }
+    /* El texto legal deja libre la esquina del botón flotante de WhatsApp */
+    .site-footer .footer-notice { padding-right: var(--gutter); }
+    .site-footer .footer-legal { padding-right: 84px; }
+}
