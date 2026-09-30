@@ -45,6 +45,21 @@
         return node;
     }
 
+    // Flecha en SVG (mismo trazo que las del catálogo)
+    function svgIcon(d) {
+        const NS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(NS, "svg");
+        svg.setAttribute("viewBox", "0 0 24 24");
+        svg.setAttribute("width", "26");
+        svg.setAttribute("height", "26");
+        svg.setAttribute("aria-hidden", "true");
+        const path = document.createElementNS(NS, "path");
+        Object.entries({ d, fill: "none", stroke: "currentColor", "stroke-width": "2.2", "stroke-linecap": "round", "stroke-linejoin": "round" })
+            .forEach(([k, v]) => path.setAttribute(k, v));
+        svg.append(path);
+        return svg;
+    }
+
     const soles = (n) => "S/ " + Number(n || 0).toLocaleString("es-PE", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
     const stockText = (p) => (p.stock > 0 ? `${p.stock} unidades` : "Consultar");
     const quoteMsg = (p, name) => `Hola, quiero cotizar: ${name} (código ${p.sku}).`;
@@ -409,6 +424,12 @@
             $("#sc-prev").onclick = () => this.step(-1);
             $("#sc-next").onclick = () => this.step(1);
             $("#sc-next-arrow").onclick = () => this.step(1);
+            // En tablet y celular el producto va arriba y los textos debajo: la
+            // vista previa del siguiente pasa a la zona del producto, a su derecha
+            const compact = window.matchMedia("(max-width: 960px)");
+            const placeNext = () => (compact.matches ? $(".sc-product") : $(".sc-side")).append($("#sc-next"));
+            placeNext();
+            compact.addEventListener("change", placeNext);
             document.addEventListener("keydown", (e) => {
                 if (e.target.closest("input, textarea, select, dialog")) return;
                 if (window.scrollY > window.innerHeight * 0.6) return;
@@ -877,12 +898,23 @@
             ]);
         },
 
+        // Una reseña al frente y, si hay espacio, las vecinas a los lados sin
+        // quedar tapadas. Se cambia con las flechas de abajo, tocando una lateral
+        // o deslizando el dedo. La altura se ajusta a la reseña más larga.
         coverflow(row, ri) {
             const n = row.length;
             const cards = row.map((r) => this.card(r));
             const track = el("div", { class: "cf-track" }, cards);
             const box = el("div", { class: "coverflow", role: "region", "aria-label": `Reseñas, grupo ${ri + 1}` }, track);
+            const arrow = (label, path) => el("button", { class: "cf-arrow", type: "button", "aria-label": label }, [svgIcon(path)]);
+            const prev = arrow("Reseña anterior", "M15 5l-7 7 7 7");
+            const next = arrow("Reseña siguiente", "M9 5l7 7-7 7");
+            const pos = el("span", { text: "1" });
+            const count = el("p", { class: "cf-count", "aria-live": "polite" }, [pos, ` / ${n}`]);
+            const nav = el("div", { class: "cf-nav" }, [prev, count, next]);
+            nav.hidden = n < 2;
             let active = 0;
+            let wide = false;
             const place = () => {
                 cards.forEach((c, i) => {
                     // distancia más corta (la fila es circular)
@@ -890,20 +922,54 @@
                     if (d > n / 2) d -= n;
                     if (d < -n / 2) d += n;
                     const ad = Math.abs(d);
+                    const shown = d === 0 || (wide && ad === 1);
                     c.style.transform = d === 0
-                        ? "translateX(-50%) translateZ(0) rotateY(0)"
-                        : `translateX(calc(-50% + ${d * 62}%)) translateZ(${-140 - ad * 60}px) rotateY(${d > 0 ? -48 : 48}deg)`;
+                        ? "translateX(-50%)"
+                        : wide
+                            ? `translateX(calc(-50% + ${d} * (90% + 16px))) scale(.8) rotateY(${d > 0 ? -35 : 35}deg)`
+                            : `translateX(calc(-50% + ${d > 0 ? 70 : -70}%)) scale(.9)`;
                     c.style.zIndex = String(10 - ad);
-                    c.style.opacity = ad > 2 ? "0" : ad === 2 ? ".55" : "1";
+                    c.style.opacity = d === 0 ? "1" : shown ? ".7" : "0";
+                    c.style.visibility = shown ? "visible" : "hidden";
                     c.classList.toggle("is-active", d === 0);
                     c.setAttribute("aria-hidden", String(d !== 0));
-                    c.onclick = () => { if (active !== i) { active = i; place(); } };
-                    c.tabIndex = d === 0 ? -1 : 0;
+                    c.onclick = () => { if (active !== i) go(i - active); };
+                    c.tabIndex = d !== 0 && shown ? 0 : -1;
                     c.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); c.onclick(); } };
                 });
+                pos.textContent = String(active + 1);
             };
+            const go = (step) => { active = (active + step + n) % n; place(); };
+            prev.onclick = () => go(-1);
+            next.onclick = () => go(1);
+            // Deslizar con el dedo
+            let x0 = null;
+            box.addEventListener("pointerdown", (e) => { x0 = e.clientX; });
+            box.addEventListener("pointerup", (e) => {
+                if (x0 === null) return;
+                const dx = e.clientX - x0;
+                x0 = null;
+                if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
+            });
+            // Ancho de tarjeta según el espacio y alto según la reseña más larga
+            let lastW = 0;
+            const fit = () => {
+                const W = box.clientWidth;
+                // solo cuando cambia el ancho (cambiar el alto no debe volver a medir)
+                if (!W || W === lastW) return;
+                lastW = W;
+                wide = W >= 700 && n > 1;
+                // En 3D la lateral se ve ≈0,8 del ancho: centro + separación + lateral
+                // deben caber en la mitad de la caja
+                const w = wide ? Math.min(340, (W / 2 - 24) / 1.32) : Math.min(440, W);
+                box.style.setProperty("--cf-w", `${Math.floor(w)}px`);
+                const h = Math.max(...cards.map((c) => c.offsetHeight));
+                box.style.height = `${h + 24}px`;
+                place();
+            };
+            new ResizeObserver(() => requestAnimationFrame(fit)).observe(box);
             place();
-            return box;
+            return el("div", { class: "cf-group" }, [box, nav]);
         },
     };
 

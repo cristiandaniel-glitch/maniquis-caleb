@@ -71,6 +71,10 @@
     // fachada.webp mide 1024×559; la vitrina ocupa este rectángulo (en fracciones)
     const AR = 1024 / 559;
     const WIN = { x: 0.376, y: 0.2916, w: 0.2471, h: 0.4007 };
+    // El hueco real del marco (385–639 × 162–388 px) es apenas mayor que WIN; el
+    // interior se recorta 5 px más por lado para que quede detrás de la madera y
+    // no asome el cielo por los bordes al hacer zoom.
+    const CLIP = { w: 264 / 1024, h: 236 / 559 };
 
     const clamp = (v) => Math.min(1, Math.max(0, v));
     const seg = (p, a, b) => clamp((p - a) / (b - a));
@@ -165,8 +169,8 @@
         } else {
             const cx = fl + winCx + dx;
             const cy = ft + winCy + dy;
-            const hw = (fw * WIN.w * scale) / 2;
-            const hh = (fh * WIN.h * scale) / 2;
+            const hw = (fw * CLIP.w * scale) / 2;
+            const hh = (fh * CLIP.h * scale) / 2;
             const top = Math.max(0, cy - hh), left = Math.max(0, cx - hw);
             const right = Math.max(0, vw - (cx + hw)), bottom = Math.max(0, vh - (cy + hh));
             L.interior.style.clipPath = `inset(${top}px ${right}px ${bottom}px ${left}px)`;
