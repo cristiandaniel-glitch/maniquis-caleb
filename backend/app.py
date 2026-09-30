@@ -546,6 +546,10 @@ class SecureRequestHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(b"403 Acceso Denegado")
             return
 
+        # Direcciones sin extensión: /admin → admin.html
+        if not os.path.splitext(target_path)[1] and os.path.isfile(target_path + ".html"):
+            target_path += ".html"
+
         if not os.path.exists(target_path) or os.path.isdir(target_path):
             fallback = os.path.join(STATIC_DIR, "index.html")
             if os.path.exists(fallback):

@@ -25,7 +25,7 @@ El cliente recibe un sistema web **Full-Stack hecho a medida**, 100% libre de co
 
 | Concepto | Detalle |
 |---|---|
-| **Acceso al Panel** | Clic en el botón superior **`⚙️ Panel Admin`** en la web |
+| **Acceso al Panel** | Abrir **`/admin`** o clic en **Administración** al final del pie de la página |
 | **Contraseña Maestra Inicial** | `AdminManiqui2026!` *(Recomendable cambiar al subir a producción)* |
 | **Ubicación de Base de Datos** | `database/maniqui.db` |
 
@@ -35,34 +35,36 @@ El cliente recibe un sistema web **Full-Stack hecho a medida**, 100% libre de co
 
 El dueño no necesita saber programación para administrar su tienda:
 
-### A. Para Cambiar Precios o Stock:
-1. Entrar a la página web y hacer clic en **`⚙️ Panel Admin`**.
-2. Ingresar la contraseña maestra.
-3. En la pestaña **`📦 Inventario`**, podrá ver toda la lista de maniquíes con su ID, precio y stock disponible.
+### A. Para Entrar al Panel:
+1. Abrir la dirección **`/admin`** de la página (ej. `https://su-dominio/admin`), o bajar al final de cualquier página y hacer clic en **Administración**.
+2. Escribir la contraseña maestra y pulsar **Ingresar**.
+3. Arriba se ven los totales: productos activos, categorías, mensajes y reclamos pendientes.
 
-### B. Para Añadir un Nuevo Modelo de Maniquí:
-1. En el Panel Admin, hacer clic en la pestaña **`➕ Añadir Maniquí`**.
-2. Completar los datos:
-   - **Nombre del Maniquí:** Ej. *Maniquí Femenino Silueta Dorada*.
-   - **Categoría:** Seleccionar entre Femeninos, Masculinos, Bustos, Infantiles o Accesorios.
-   - **Precio en Soles (S/):** Ej. *290.00*.
-   - **Stock:** Número de unidades disponibles en el Stand 3.
-   - **Descripción y Medidas:** Altura, pecho, cintura, cadera y tipo de base.
-   - **Foto del Maniquí:** Colocar la ruta de la foto (ej. `/assets/images/foto-maniqui.png`) o una URL directa.
-3. Hacer clic en **`💾 Guardar Maniquí en la Base de Datos`** y aparecerá al instante en el catálogo público.
+### B. Para Ver o Quitar Productos:
+1. En la pestaña **Inventario** está la lista de productos con su foto, categoría, código y stock.
+2. El botón **Eliminar** quita el producto del catálogo (pide confirmación antes).
 
-### C. Para Cambiar o Colocar Fotos Reales:
-1. Guardar las fotografías tomadas en el stand dentro de la carpeta:
-   👉 `frontend/assets/images/`
-2. Ponerle un nombre descriptivo sin espacios (ej. `maniqui-dorado-stand3.jpg`).
-3. En el formulario de producto colocar: `/assets/images/maniqui-dorado-stand3.jpg`.
+### C. Para Añadir un Nuevo Maniquí:
+1. Ir a la pestaña **Añadir maniquí** y completar:
+   - **Nombre** y **Categoría**.
+   - **Descripción:** para qué sirve y cómo es.
+   - **Material, Color y Medidas** (opcionales; si se dejan vacíos, el catálogo muestra "Consultar").
+   - **Stock:** unidades disponibles en el Stand 3.
+   - **Foto:** la ruta del archivo, por ejemplo `/assets/productos/maniqui-dorado.webp` (se ve una vista previa).
+2. Pulsar **Guardar en el catálogo**: aparece al instante en la página.
+
+### D. Para Subir Fotos Reales:
+1. Guardar la foto (de preferencia `.webp`, fondo transparente o claro) en la carpeta:
+   👉 `frontend/assets/productos/`
+2. Ponerle un nombre sin espacios ni tildes (ej. `maniqui-dorado.webp`).
+3. En el formulario escribir: `/assets/productos/maniqui-dorado.webp`.
 
 ---
 
 ## 4. 📬 ¿Cómo Revisar Mensajes y Reclamaciones?
 
-1. En el Panel Admin, ir a la pestaña **`📬 Mensajes`** para ver los clientes que enviaron solicitudes de cotización desde la web.
-2. En la pestaña **`⚖️ Libro de Reclamaciones`**, podrá revisar todas las hojas de quejas o reclamos registradas, responderles formalmente y cambiar su estado de *Pendiente* a *Atendido*.
+1. En el panel, la pestaña **Mensajes** muestra lo que escribieron los clientes desde la web, con su correo y un enlace directo a su WhatsApp.
+2. La pestaña **Reclamaciones** muestra cada hoja del Libro de Reclamaciones (código, datos del cliente, detalle y pedido). La respuesta al cliente se envía por correo dentro de los 15 días hábiles que exige Indecopi.
 
 ---
 

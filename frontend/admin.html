@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es-PE">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Administración | Novedades Caleb</title>
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="theme-color" content="#232326">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Kaushan+Script&family=Shojumaru&family=Courgette&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/logo/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="64x64" href="/assets/logo/favicon-64.png">
+    <link rel="apple-touch-icon" href="/assets/logo/apple-touch-icon.png">
+    <link rel="stylesheet" href="/css/site.css">
+</head>
+<body data-page="admin">
+
+<!-- Panel del dueño: no aparece en el menú del sitio; se entra por /admin
+     o por el enlace "Administración" del pie. Lógica en /js/admin.js -->
+<header class="admin-bar">
+    <a class="brand" href="/" aria-label="Novedades Caleb, ir al sitio">
+        <span class="brand-name">CALEB</span>
+        <span class="brand-sub">Administración</span>
+    </a>
+    <div class="admin-bar-actions">
+        <a class="btn btn-ghost-light" href="/" target="_blank" rel="noopener">Ver el sitio</a>
+        <button class="btn btn-tape" type="button" id="adm-logout" hidden>Cerrar sesión</button>
+    </div>
+</header>
+
+<main id="contenido" class="admin-main">
+
+    <!-- Ingreso -->
+    <section class="admin-login" id="adm-login-view" aria-labelledby="adm-login-title">
+        <form class="form admin-card" id="adm-login-form" novalidate>
+            <h1 id="adm-login-title" class="admin-title">Panel de administración</h1>
+            <p class="muted">Solo para el dueño: catálogo, mensajes de clientes y Libro de Reclamaciones.</p>
+            <label class="field">
+                <span>Contraseña maestra</span>
+                <input type="password" id="adm-password" autocomplete="current-password" required>
+            </label>
+            <p class="form-error" id="adm-login-error" role="alert" hidden></p>
+            <button class="btn btn-dark" type="submit">Ingresar</button>
+        </form>
+    </section>
+
+    <!-- Panel -->
+    <section class="admin-dash" id="adm-dash-view" aria-labelledby="adm-dash-title" hidden>
+        <h1 id="adm-dash-title" class="admin-title">Panel de administración</h1>
+
+        <ul class="admin-stats" aria-label="Resumen">
+            <li><span>Productos activos</span><strong id="st-products">—</strong></li>
+            <li><span>Categorías</span><strong id="st-categories">—</strong></li>
+            <li><span>Mensajes</span><strong id="st-messages">—</strong></li>
+            <li><span>Reclamos pendientes</span><strong id="st-claims">—</strong></li>
+        </ul>
+
+        <div class="admin-tabs" role="tablist" aria-label="Secciones del panel">
+            <button role="tab" type="button" id="tab-inv" aria-controls="pane-inv" aria-selected="true">Inventario</button>
+            <button role="tab" type="button" id="tab-new" aria-controls="pane-new" aria-selected="false" tabindex="-1">Añadir maniquí</button>
+            <button role="tab" type="button" id="tab-msg" aria-controls="pane-msg" aria-selected="false" tabindex="-1">Mensajes</button>
+            <button role="tab" type="button" id="tab-clm" aria-controls="pane-clm" aria-selected="false" tabindex="-1">Reclamaciones</button>
+        </div>
+
+        <div class="admin-pane" role="tabpanel" id="pane-inv" aria-labelledby="tab-inv">
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead><tr><th>Producto</th><th>Categoría</th><th>Código</th><th>Stock</th><th><span class="sr-only">Acción</span></th></tr></thead>
+                    <tbody id="adm-products"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="admin-pane" role="tabpanel" id="pane-new" aria-labelledby="tab-new" hidden>
+            <form class="form admin-card admin-card-wide" id="adm-new-form" novalidate>
+                <div class="field-row">
+                    <label class="field"><span>Nombre</span><input name="name" required maxlength="120" placeholder="Maniquí femenino realista"></label>
+                    <label class="field"><span>Categoría</span><select name="category_id" id="adm-categories" required></select></label>
+                </div>
+                <label class="field"><span>Descripción</span><textarea name="description" required maxlength="600" placeholder="Para qué sirve, cómo es y en qué vitrinas luce."></textarea></label>
+                <div class="field-row">
+                    <label class="field"><span>Material <em>(opcional)</em></span><input name="material" maxlength="80" placeholder="Fibra de vidrio"></label>
+                    <label class="field"><span>Color <em>(opcional)</em></span><input name="color" maxlength="80" placeholder="Piel"></label>
+                </div>
+                <div class="field-row">
+                    <label class="field"><span>Medidas <em>(opcional)</em></span><input name="dimensions" maxlength="80" placeholder="180 cm"></label>
+                    <label class="field"><span>Stock <em>(unidades)</em></span><input name="stock" type="number" min="0" step="1" value="0"></label>
+                </div>
+                <div class="field-row admin-photo-row">
+                    <label class="field">
+                        <span>Foto <em>(ruta del archivo en /assets/productos/)</em></span>
+                        <input name="image_url" id="adm-image" placeholder="/assets/productos/mi-maniqui.webp" pattern="/assets/productos/[\w\-]+\.(webp|png|jpg|jpeg)">
+                    </label>
+                    <figure class="admin-photo-preview"><img id="adm-image-preview" alt="Vista previa de la foto" hidden><figcaption id="adm-image-note" class="muted">Sin foto</figcaption></figure>
+                </div>
+                <label class="check"><input type="checkbox" name="is_featured"> Mostrar como destacado</label>
+                <p class="form-error" id="adm-new-error" role="alert" hidden></p>
+                <button class="btn btn-dark" type="submit">Guardar en el catálogo</button>
+            </form>
+        </div>
+
+        <div class="admin-pane" role="tabpanel" id="pane-msg" aria-labelledby="tab-msg" hidden>
+            <ul class="admin-list" id="adm-messages"></ul>
+        </div>
+
+        <div class="admin-pane" role="tabpanel" id="pane-clm" aria-labelledby="tab-clm" hidden>
+            <ul class="admin-list" id="adm-claims"></ul>
+        </div>
+    </section>
+</main>
+
+<div class="toast" id="adm-toast" role="status" aria-live="polite" hidden></div>
+
+<script src="/js/admin.js"></script>
+</body>
+</html>

@@ -1,324 +1,331 @@
-/**
- * Panel de Administración Interactivo y Seguro para Maniquí Studio.
- * Requiere autenticación mediante Token seguro para realizar operaciones sobre la base de datos.
- */
+/* Panel de administración de Novedades Caleb (/admin).
+   Ingreso con la contraseña maestra → token de sesión (4 h) guardado solo en
+   esta pestaña. Todo el texto que viene de la base de datos se pinta con
+   textContent, nunca como HTML. */
+(() => {
+    "use strict";
 
-const Admin = {
-    /**
-     * Inicializa el panel administrativo y los eventos.
-     */
-    async init() {
-        this.setupLoginForm();
-        this.setupNewProductForm();
-        this.setupTabs();
-    },
+    const TOKEN_KEY = "caleb_admin_token";
+    const $ = (sel) => document.querySelector(sel);
 
-    /**
-     * Abre el modal de inicio de sesión o directamente el panel si la sesión está activa.
-     */
-    async openDashboard() {
-        const token = API.getAdminToken();
-        if (!token) {
-            UI.openModal('modal-admin-login');
+    // El servidor guarda el texto escapado (&quot; …); se decodifica para mostrarlo
+    // como texto plano (un <textarea> no ejecuta nada al decodificar)
+    const decoder = document.createElement("textarea");
+    const plain = (v) => { decoder.innerHTML = String(v ?? ""); return decoder.value; };
+
+    function el(tag, props = {}, children = []) {
+        const node = document.createElement(tag);
+        for (const [key, val] of Object.entries(props)) {
+            if (val == null || val === false) continue;
+            if (key === "class") node.className = val;
+            else if (key === "text") node.textContent = plain(val);
+            else node.setAttribute(key, val === true ? "" : plain(val));
+        }
+        for (const child of [].concat(children)) {
+            if (child != null) node.append(child instanceof Node ? child : document.createTextNode(plain(child)));
+        }
+        return node;
+    }
+
+    const store = {
+        get: () => { try { return sessionStorage.getItem(TOKEN_KEY); } catch (e) { return null; } },
+        set: (v) => { try { sessionStorage.setItem(TOKEN_KEY, v); } catch (e) { /* sin almacenamiento */ } },
+        clear: () => { try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) { /* sin almacenamiento */ } },
+    };
+
+    class AuthError extends Error {}
+
+    async function api(path, options = {}) {
+        const headers = { "Content-Type": "application/json" };
+        const token = store.get();
+        if (token) headers.Authorization = `Bearer ${token}`;
+        let res;
+        try {
+            // cache: "no-store" → el panel siempre ve el dato actual (la API pública
+            // deja que el navegador reutilice respuestas hasta 60 s)
+            res = await fetch(path, { ...options, headers, cache: "no-store" });
+        } catch (e) {
+            throw new Error("No hay conexión con el servidor. Revisa tu internet e inténtalo otra vez.");
+        }
+        let data = {};
+        try { data = await res.json(); } catch (e) { /* respuesta sin cuerpo */ }
+        if (res.status === 401) throw new AuthError(data.error || "La sesión venció. Vuelve a ingresar.");
+        if (!res.ok || data.success === false) {
+            throw new Error(data.error || data.message || `El servidor respondió con error ${res.status}.`);
+        }
+        return data;
+    }
+
+    let toastTimer;
+    function toast(message, isError = false) {
+        const t = $("#adm-toast");
+        t.textContent = message;
+        t.classList.toggle("is-error", isError);
+        t.hidden = false;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { t.hidden = true; }, 5000);
+    }
+
+    const fecha = (v) => {
+        const d = new Date(String(v).replace(" ", "T"));
+        return isNaN(d) ? String(v || "") : d.toLocaleString("es-PE", { dateStyle: "medium", timeStyle: "short" });
+    };
+    const soles = (n) => "S/ " + Number(n || 0).toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // ------------------------------------------------------------ vistas
+    function showLogin(message) {
+        store.clear();
+        $("#adm-dash-view").hidden = true;
+        $("#adm-logout").hidden = true;
+        $("#adm-login-view").hidden = false;
+        const err = $("#adm-login-error");
+        err.textContent = message || "";
+        err.hidden = !message;
+        $("#adm-password").focus();
+    }
+
+    function showDashboard() {
+        $("#adm-login-view").hidden = true;
+        $("#adm-dash-view").hidden = false;
+        $("#adm-logout").hidden = false;
+        loadStats();
+        loadProducts();
+        loadCategories();
+    }
+
+    // Cualquier 401 devuelve al ingreso; los demás errores se muestran en un aviso
+    function guard(promise) {
+        return promise.catch((e) => {
+            if (e instanceof AuthError) showLogin(e.message);
+            else toast(e.message, true);
+        });
+    }
+
+    // ------------------------------------------------------------ ingreso
+    $("#adm-login-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const input = $("#adm-password");
+        const btn = e.currentTarget.querySelector("button[type=submit]");
+        const err = $("#adm-login-error");
+        if (!input.value.trim()) {
+            err.textContent = "Escribe la contraseña.";
+            err.hidden = false;
+            input.setAttribute("aria-invalid", "true");
+            input.focus();
             return;
         }
-
+        input.removeAttribute("aria-invalid");
+        btn.disabled = true;
+        btn.textContent = "Verificando…";
         try {
-            await API.verifyAdminSession();
-            UI.openModal('modal-admin-dashboard');
-            await this.loadStats();
-            await this.loadAdminProducts();
-        } catch (error) {
-            API.clearAdminToken();
-            UI.openModal('modal-admin-login');
+            store.clear();
+            const res = await api("/api/admin/login", { method: "POST", body: JSON.stringify({ password: input.value }) });
+            store.set(res.data.token);
+            input.value = "";
+            err.hidden = true;
+            showDashboard();
+        } catch (ex) {
+            err.textContent = ex.message;
+            err.hidden = false;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Ingresar";
         }
-    },
+    });
 
-    /**
-     * Configura el formulario de inicio de sesión administrativo.
-     */
-    setupLoginForm() {
-        const form = document.getElementById('admin-login-form');
-        if (!form) return;
+    $("#adm-logout").addEventListener("click", () => {
+        showLogin();
+        toast("Sesión cerrada.");
+    });
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const passwordInput = document.getElementById('admin-password');
-            const password = passwordInput?.value.trim();
-
-            if (!password) {
-                return UI.showToast('Por favor ingrese la contraseña.', 'error');
-            }
-
-            const btn = form.querySelector('button[type="submit"]');
-            if (btn) {
-                btn.disabled = true;
-                btn.innerText = 'Verificando credenciales...';
-            }
-
-            try {
-                const res = await API.loginAdmin(password);
-                if (res.success && res.data.token) {
-                    API.setAdminToken(res.data.token);
-                    UI.showToast('Acceso autorizado al panel de control.', 'success', 'Bienvenido Administrador');
-                    form.reset();
-                    UI.closeModal('modal-admin-login');
-                    UI.openModal('modal-admin-dashboard');
-                    await this.loadStats();
-                    await this.loadAdminProducts();
-                }
-            } catch (error) {
-                UI.showToast(error.message, 'error', 'Error de Autenticación');
-            } finally {
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerText = 'Iniciar Sesión Segura';
-                }
-            }
+    // ------------------------------------------------------------ pestañas
+    const tabs = [...document.querySelectorAll(".admin-tabs [role=tab]")];
+    const loaders = { "pane-inv": () => loadProducts(), "pane-msg": () => loadMessages(), "pane-clm": () => loadClaims() };
+    function selectTab(tab) {
+        tabs.forEach((t) => {
+            const on = t === tab;
+            t.setAttribute("aria-selected", String(on));
+            t.tabIndex = on ? 0 : -1;
+            $("#" + t.getAttribute("aria-controls")).hidden = !on;
         });
-    },
-
-    /**
-     * Cierra la sesión de administrador.
-     */
-    logout() {
-        API.logoutAdmin();
-        UI.closeModal('modal-admin-dashboard');
-        UI.showToast('Sesión de administrador cerrada correctamente.', 'info', 'Sesión');
-    },
-
-    /**
-     * Configura el cambio entre pestañas del panel admin.
-     */
-    setupTabs() {
-        const tabs = document.querySelectorAll('.admin-tab-btn');
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                tabs.forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-
-                const target = tab.dataset.adminTab;
-                document.querySelectorAll('.admin-tab-content').forEach(c => c.style.display = 'none');
-
-                const targetContent = document.getElementById(`admin-tab-${target}`);
-                if (targetContent) targetContent.style.display = 'block';
-
-                if (target === 'products') this.loadAdminProducts();
-                if (target === 'messages') this.loadMessages();
-                if (target === 'claims') this.loadClaims();
-            });
-        });
-    },
-
-    /**
-     * Carga estadísticas del sistema.
-     */
-    async loadStats() {
-        try {
-            const res = await API.getStats();
-            if (res.success && res.data) {
-                const s = res.data;
-                const setEl = (id, val) => {
-                    const el = document.getElementById(id);
-                    if (el) el.innerText = val;
-                };
-                setEl('stat-total-products', s.products_total);
-                setEl('stat-total-categories', s.categories_total);
-                setEl('stat-total-messages', s.messages_total);
-                setEl('stat-pending-claims', s.claims_pending);
-            }
-        } catch (error) {
-            console.error('Error cargando estadísticas:', error);
-        }
-    },
-
-    /**
-     * Carga la tabla de productos para administración.
-     */
-    async loadAdminProducts() {
-        const container = document.getElementById('admin-products-table-body');
-        if (!container) return;
-
-        container.innerHTML = '<tr><td colspan="6" style="text-align:center;">Cargando inventario...</td></tr>';
-
-        try {
-            const res = await API.getProducts();
-            if (res.success) {
-                if (res.data.length === 0) {
-                    container.innerHTML = '<tr><td colspan="6" style="text-align:center;">No hay productos registrados.</td></tr>';
-                    return;
-                }
-
-                container.innerHTML = res.data.map(p => `
-                    <tr>
-                        <td><strong>#${p.id}</strong></td>
-                        <td>
-                            <div style="display: flex; align-items: center; gap: 0.75rem;">
-                                <img src="${Security.escapeHTML(p.image_url)}" alt="${Security.escapeHTML(p.name)}" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
-                                <span>${Security.escapeHTML(p.name)}</span>
-                            </div>
-                        </td>
-                        <td>${Security.escapeHTML(p.category_name || 'Sin Categoría')}</td>
-                        <td><strong>${CONFIG.CURRENCY_SYMBOL}${parseFloat(p.price).toFixed(2)}</strong></td>
-                        <td><span class="badge ${p.stock > 0 ? 'badge-success' : 'badge-danger'}">${p.stock} un.</span></td>
-                        <td>
-                            <button class="btn btn-danger" style="padding: 0.35rem 0.75rem; font-size: 0.75rem;" onclick="Admin.deleteProduct(${p.id})">
-                                Eliminar
-                            </button>
-                        </td>
-                    </tr>
-                `).join('');
-            }
-        } catch (error) {
-            container.innerHTML = `<tr><td colspan="6" style="color:var(--state-danger);text-align:center;">Error: ${Security.escapeHTML(error.message)}</td></tr>`;
-        }
-    },
-
-    /**
-     * Configura el formulario para añadir un nuevo producto.
-     */
-    setupNewProductForm() {
-        const form = document.getElementById('admin-new-product-form');
-        if (!form) return;
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const name = document.getElementById('new-prod-name')?.value.trim();
-            const categoryId = parseInt(document.getElementById('new-prod-category')?.value || '1');
-            const price = parseFloat(document.getElementById('new-prod-price')?.value) || 0.0;
-            const stock = parseInt(document.getElementById('new-prod-stock')?.value) || 1;
-            const description = document.getElementById('new-prod-desc')?.value.trim();
-            const material = document.getElementById('new-prod-material')?.value.trim();
-            const color = document.getElementById('new-prod-color')?.value.trim();
-            const dimensions = document.getElementById('new-prod-dimensions')?.value.trim();
-            const imageUrl = document.getElementById('new-prod-image')?.value.trim() || '/assets/productos/maniqui-femenino-abstracto-blanco.webp';
-            const isFeatured = document.getElementById('new-prod-featured')?.checked || false;
-
-            if (!name) return UI.showToast('El nombre del maniquí es obligatorio.', 'error');
-            if (!description) return UI.showToast('La descripción es obligatoria.', 'error');
-            if (price <= 0) return UI.showToast('Ingrese un precio válido.', 'error');
-
-            const payload = {
-                name,
-                category_id: categoryId,
-                price,
-                stock,
-                description,
-                material,
-                color,
-                dimensions,
-                image_url: imageUrl,
-                is_featured: isFeatured
-            };
-
-            try {
-                const res = await API.createProduct(payload);
-                if (res.success) {
-                    UI.showToast('¡Maniquí añadido exitosamente a la base de datos!', 'success', 'Inventario');
-                    form.reset();
-                    await this.loadAdminProducts();
-                    await this.loadStats();
-                    Catalog.loadProducts();
-                }
-            } catch (error) {
-                UI.showToast(error.message, 'error', 'Error al crear');
-            }
-        });
-    },
-
-    /**
-     * Elimina un producto.
-     */
-    async deleteProduct(productId) {
-        if (!confirm('¿Está seguro de eliminar este producto del catálogo?')) return;
-
-        try {
-            const res = await API.deleteProduct(productId);
-            if (res.success) {
-                UI.showToast('Producto eliminado correctamente.', 'success');
-                await this.loadAdminProducts();
-                await this.loadStats();
-                Catalog.loadProducts();
-            }
-        } catch (error) {
-            UI.showToast(error.message, 'error');
-        }
-    },
-
-    /**
-     * Carga mensajes de contacto en la pestaña admin.
-     */
-    async loadMessages() {
-        const container = document.getElementById('admin-messages-list');
-        if (!container) return;
-
-        container.innerHTML = '<p style="color: var(--text-secondary);">Cargando mensajes...</p>';
-
-        try {
-            const res = await API.getMessages();
-            if (res.success) {
-                if (res.data.length === 0) {
-                    container.innerHTML = '<p style="color: var(--text-secondary);">Bandeja de entrada vacía.</p>';
-                    return;
-                }
-
-                container.innerHTML = res.data.map(m => `
-                    <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); padding: 1.25rem; border-radius: var(--radius-md); margin-bottom: 1rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                            <strong>${Security.escapeHTML(m.name)} &lt;${Security.escapeHTML(m.email)}&gt;</strong>
-                            <span style="font-size: 0.75rem; color: var(--text-muted);">${new Date(m.created_at).toLocaleString()}</span>
-                        </div>
-                        <div style="font-size: 0.9rem; font-weight: 600; color: var(--accent-gold); margin-bottom: 0.5rem;">Asunto: ${Security.escapeHTML(m.subject)}</div>
-                        <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.5;">${Security.escapeHTML(m.message)}</p>
-                        ${m.phone ? `<div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">Teléfono / WhatsApp: ${Security.escapeHTML(m.phone)}</div>` : ''}
-                    </div>
-                `).join('');
-            }
-        } catch (error) {
-            container.innerHTML = `<p style="color: var(--state-danger);">Error: ${Security.escapeHTML(error.message)}</p>`;
-        }
-    },
-
-    /**
-     * Carga las reclamaciones en la pestaña admin.
-     */
-    async loadClaims() {
-        const container = document.getElementById('admin-claims-list');
-        if (!container) return;
-
-        container.innerHTML = '<p style="color: var(--text-secondary);">Cargando registro del Libro de Reclamaciones...</p>';
-
-        try {
-            const res = await API.getAllClaims();
-            if (res.success) {
-                if (res.data.length === 0) {
-                    container.innerHTML = '<p style="color: var(--text-secondary);">No hay reclamaciones registradas.</p>';
-                    return;
-                }
-
-                container.innerHTML = res.data.map(c => `
-                    <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); padding: 1.25rem; border-radius: var(--radius-md); margin-bottom: 1rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                            <div>
-                                <span class="claim-receipt-code" style="font-size: 1rem; padding: 0.2rem 0.5rem; margin: 0 0.5rem 0 0;">${Security.escapeHTML(c.claim_code)}</span>
-                                <strong>${Security.escapeHTML(c.full_name)}</strong>
-                            </div>
-                            <span class="badge ${c.status === 'Pendiente' ? 'badge-warning' : 'badge-success'}">${Security.escapeHTML(c.status)}</span>
-                        </div>
-                        <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-top: 0.5rem;">
-                            <p><strong>Tipo:</strong> ${Security.escapeHTML(c.claim_type)} | <strong>Fecha:</strong> ${new Date(c.created_at).toLocaleString()}</p>
-                            <p><strong>Bien Contratado:</strong> ${Security.escapeHTML(c.contracted_good)} (${CONFIG.CURRENCY_SYMBOL}${parseFloat(c.amount_claimed).toFixed(2)})</p>
-                            <p><strong>Descripción:</strong> ${Security.escapeHTML(c.claim_description)}</p>
-                            <p><strong>Pedido del Consumidor:</strong> ${Security.escapeHTML(c.consumer_request)}</p>
-                        </div>
-                    </div>
-                `).join('');
-            }
-        } catch (error) {
-            container.innerHTML = `<p style="color: var(--state-danger);">Error: ${Security.escapeHTML(error.message)}</p>`;
-        }
+        const load = loaders[tab.getAttribute("aria-controls")];
+        if (load) load();
     }
-};
+    tabs.forEach((t, i) => {
+        t.addEventListener("click", () => selectTab(t));
+        t.addEventListener("keydown", (e) => {
+            const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+            if (!step) return;
+            const next = tabs[(i + step + tabs.length) % tabs.length];
+            next.focus();
+            selectTab(next);
+        });
+    });
 
-window.Admin = Admin;
+    // ------------------------------------------------------------ datos
+    function loadStats() {
+        return guard(api("/api/stats").then(({ data }) => {
+            $("#st-products").textContent = data.products_total ?? "—";
+            $("#st-categories").textContent = data.categories_total ?? "—";
+            $("#st-messages").textContent = data.messages_total ?? "—";
+            $("#st-claims").textContent = data.claims_pending ?? "—";
+        }));
+    }
+
+    function loadCategories() {
+        const select = $("#adm-categories");
+        if (select.options.length) return;
+        guard(api("/api/categories").then(({ data }) => {
+            select.replaceChildren(...data.map((c) => el("option", { value: String(c.id), text: c.name })));
+        }));
+    }
+
+    function emptyRow(tbody, text) {
+        tbody.replaceChildren(el("tr", {}, el("td", { colspan: "5", class: "admin-empty", text })));
+    }
+
+    function loadProducts() {
+        const tbody = $("#adm-products");
+        emptyRow(tbody, "Cargando inventario…");
+        return guard(api("/api/products").then(({ data }) => {
+            if (!data.length) return emptyRow(tbody, "No hay productos en el catálogo.");
+            tbody.replaceChildren(...data.map((p) => {
+                const del = el("button", { class: "btn btn-outline admin-del", type: "button", text: "Eliminar", "aria-label": `Eliminar ${p.name}` });
+                del.addEventListener("click", () => removeProduct(p, del));
+                return el("tr", {}, [
+                    el("td", {}, el("div", { class: "admin-prod" }, [
+                        el("img", { src: p.image_url, alt: "", loading: "lazy", width: "44", height: "56" }),
+                        el("span", { text: p.name }),
+                    ])),
+                    el("td", { "data-label": "Categoría", text: p.category_name || "—" }),
+                    el("td", { "data-label": "Código", text: p.sku || "—" }),
+                    el("td", { "data-label": "Stock", text: p.stock > 0 ? `${p.stock} un.` : "Consultar" }),
+                    el("td", {}, del),
+                ]);
+            }));
+        }));
+    }
+
+    async function removeProduct(p, btn) {
+        if (!window.confirm(`¿Quitar "${plain(p.name)}" del catálogo? Dejará de verse en la página.`)) return;
+        btn.disabled = true;
+        await guard(api(`/api/products/${p.id}`, { method: "DELETE" }).then(() => {
+            toast(`"${plain(p.name)}" se quitó del catálogo.`);
+            loadProducts();
+            loadStats();
+        }));
+        btn.disabled = false;
+    }
+
+    function loadMessages() {
+        const list = $("#adm-messages");
+        list.replaceChildren(el("li", { class: "admin-empty", text: "Cargando mensajes…" }));
+        return guard(api("/api/messages").then(({ data }) => {
+            if (!data.length) return list.replaceChildren(el("li", { class: "admin-empty", text: "No hay mensajes todavía." }));
+            list.replaceChildren(...data.map((m) => el("li", { class: "admin-item" }, [
+                el("div", { class: "admin-item-head" }, [
+                    el("strong", { text: m.name }),
+                    el("span", { class: "muted", text: fecha(m.created_at) }),
+                ]),
+                el("p", { class: "admin-item-sub", text: m.subject || "Sin asunto" }),
+                el("p", { text: m.message }),
+                el("p", { class: "muted" }, [
+                    m.email ? el("a", { href: `mailto:${m.email}`, text: m.email }) : null,
+                    m.email && m.phone ? " · " : null,
+                    m.phone ? el("a", { href: `https://wa.me/${String(m.phone).replace(/\D/g, "")}`, target: "_blank", rel: "noopener", text: `WhatsApp ${m.phone}` }) : null,
+                ]),
+            ])));
+        }));
+    }
+
+    function loadClaims() {
+        const list = $("#adm-claims");
+        list.replaceChildren(el("li", { class: "admin-empty", text: "Cargando Libro de Reclamaciones…" }));
+        return guard(api("/api/claims/all").then(({ data }) => {
+            if (!data.length) return list.replaceChildren(el("li", { class: "admin-empty", text: "No hay reclamos registrados." }));
+            list.replaceChildren(...data.map((c) => el("li", { class: "admin-item" }, [
+                el("div", { class: "admin-item-head" }, [
+                    el("strong", { text: `${c.claim_code} · ${c.full_name}` }),
+                    el("span", { class: `admin-badge${c.status === "Pendiente" ? " is-pending" : ""}`, text: c.status }),
+                ]),
+                el("p", { class: "admin-item-sub", text: `${c.claim_type} · ${fecha(c.created_at)} · responder en 15 días hábiles` }),
+                el("dl", { class: "admin-dl" }, [
+                    el("dt", { text: "Bien contratado" }), el("dd", { text: `${c.contracted_good || "—"}${c.amount_claimed ? ` (${soles(c.amount_claimed)})` : ""}` }),
+                    el("dt", { text: "Detalle" }), el("dd", { text: c.claim_description }),
+                    el("dt", { text: "Pedido del cliente" }), el("dd", { text: c.consumer_request }),
+                    el("dt", { text: "Contacto" }), el("dd", { text: [c.email, c.phone].filter(Boolean).join(" · ") || "—" }),
+                ]),
+            ])));
+        }));
+    }
+
+    // ------------------------------------------------------------ nuevo producto
+    const imgInput = $("#adm-image");
+    const preview = $("#adm-image-preview");
+    const note = $("#adm-image-note");
+    function showPreview() {
+        const v = imgInput.value.trim();
+        preview.hidden = true;
+        if (!v) { note.textContent = "Sin foto"; return; }
+        note.textContent = "Cargando…";
+        preview.onload = () => { preview.hidden = false; note.textContent = ""; };
+        preview.onerror = () => { preview.hidden = true; note.textContent = "No se encontró esa foto"; };
+        preview.src = v;
+    }
+    imgInput.addEventListener("change", showPreview);
+    // Al corregir un campo, se quita la marca de error
+    $("#adm-new-form").addEventListener("input", (e) => {
+        if (e.target.getAttribute("aria-invalid")) {
+            e.target.removeAttribute("aria-invalid");
+            $("#adm-new-error").hidden = true;
+        }
+    });
+
+    $("#adm-new-form").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const form = e.currentTarget;
+        const err = $("#adm-new-error");
+        const bad = [...form.querySelectorAll("input, select, textarea")].find((f) => !f.checkValidity());
+        form.querySelectorAll("[aria-invalid]").forEach((f) => f.removeAttribute("aria-invalid"));
+        if (bad) {
+            bad.setAttribute("aria-invalid", "true");
+            err.textContent = bad.name === "image_url"
+                ? "La foto debe estar en /assets/productos/ y terminar en .webp, .png o .jpg."
+                : "Completa el nombre, la categoría y la descripción.";
+            err.hidden = false;
+            bad.focus();
+            return;
+        }
+        err.hidden = true;
+        const f = new FormData(form);
+        const payload = {
+            name: f.get("name").trim(),
+            category_id: Number(f.get("category_id")),
+            description: f.get("description").trim(),
+            material: f.get("material").trim() || "Consultar",
+            color: f.get("color").trim(),
+            dimensions: f.get("dimensions").trim(),
+            stock: Math.max(0, parseInt(f.get("stock"), 10) || 0),
+            price: 0,
+            image_url: f.get("image_url").trim() || "/assets/productos/maniqui-femenino-abstracto-blanco.webp",
+            is_featured: f.get("is_featured") === "on",
+        };
+        const btn = form.querySelector("button[type=submit]");
+        btn.disabled = true;
+        await guard(api("/api/products", { method: "POST", body: JSON.stringify(payload) }).then(() => {
+            toast(`"${payload.name}" ya aparece en el catálogo.`);
+            form.reset();
+            showPreview();
+            loadStats();
+            selectTab($("#tab-inv"));
+        }));
+        btn.disabled = false;
+    });
+
+    // ------------------------------------------------------------ arranque
+    if (store.get()) {
+        api("/api/admin/verify").then(showDashboard).catch(() => showLogin());
+    } else {
+        showLogin();
+    }
+})();

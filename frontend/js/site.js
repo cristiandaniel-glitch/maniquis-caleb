@@ -65,10 +65,9 @@
     const quoteMsg = (p, name) => `Hola, quiero cotizar: ${name} (código ${p.sku}).`;
     const waLink = (text) => `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(text)}`;
 
-    // Las imágenes originales pesan hasta 4 MB; usamos las versiones optimizadas.
+    // Foto del producto; si no tiene, una genérica del catálogo
     function imgSrc(url) {
-        if (!url) return "/assets/productos/maniqui-femenino-abstracto-blanco.webp";
-        return url.replace("/assets/images/", "/assets/img/").replace(/\.png$/i, ".jpg");
+        return url || "/assets/productos/maniqui-femenino-abstracto-blanco.webp";
     }
     function withFallback(img, original) {
         img.addEventListener("error", function onErr() {

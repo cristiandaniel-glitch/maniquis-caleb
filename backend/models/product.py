@@ -88,7 +88,7 @@ def create_product(data: Dict[str, Any]) -> int:
     dimensions = sanitize_string(data.get("dimensions", "Medidas estándar"))
     price = float(data.get("price", 0.0))
     stock = int(data.get("stock", 1))
-    image_url = sanitize_string(data.get("image_url", "/assets/images/mannequin-aura.png"))
+    image_url = sanitize_string(data.get("image_url") or "/assets/productos/maniqui-femenino-abstracto-blanco.webp")
     is_featured = 1 if data.get("is_featured") else 0
     slug = slugify(name)
 

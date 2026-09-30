@@ -104,7 +104,7 @@ def get_claim_by_code(claim_code: str) -> Optional[Dict[str, Any]]:
     return query_one(sql, (claim_code.strip(),))
 
 
-def get_all_claims(limit: int = 50) -> List[Dict[str, Any]]:
+def get_all_claims(limit: int = 1000) -> List[Dict[str, Any]]:
     """Obtiene el listado de reclamaciones para gestión administrativa."""
     sql = "SELECT * FROM claims_book ORDER BY created_at DESC LIMIT ?"
     return query_all(sql, (limit,))

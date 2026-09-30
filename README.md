@@ -35,25 +35,24 @@ PaginaWebManiqui/
 │   ├── init_db.py          # Script CLI de inicialización de base de datos
 │   └── maniqui.db          # Base de datos SQLite generada
 ├── frontend/
-│   ├── index.html          # Interfaz principal semántica y SEO optimizada
+│   ├── index.html          # Inicio: escena por capas (fachada, vitrina, interior)
+│   ├── nosotros.html       # Quiénes somos, materiales y contacto
+│   ├── catalogo.html       # Vitrina de productos y listado con filtros
+│   ├── resenas.html        # Reseñas de clientes (carrusel con flechas)
+│   ├── reclamaciones.html  # Libro de Reclamaciones virtual (Indecopi)
+│   ├── privacidad.html     # Términos, privacidad y uso de IA
+│   ├── admin.html          # Panel del dueño (se abre en /admin)
 │   ├── css/
-│   │   ├── variables.css   # Tokens de diseño, modo oscuro y claro
-│   │   ├── reset.css       # Reseteo base CSS moderno
-│   │   ├── main.css        # Layouts, header glassmorphism, hero, footer
-│   │   ├── components.css  # Botones, tarjetas de maniquíes, modales, toasts
-│   │   └── legal.css       # Estilos para Libro de Reclamaciones y constancia
+│   │   └── site.css        # Todos los estilos del sitio y del panel
 │   ├── js/
-│   │   ├── config.js       # Configuración y URLs del cliente
-│   │   ├── security.js     # Sanitizador del cliente (prevención XSS)
-│   │   ├── api.js          # Cliente fetch reutilizable con manejo de errores
-│   │   ├── ui.js           # Notificaciones Toast, modales, alternador de tema
-│   │   ├── catalog.js      # Catálogo interactivo con búsqueda en tiempo real
-│   │   ├── claims.js       # Formulario y constancia del Libro de Reclamaciones
-│   │   ├── admin.js        # Panel de administración interactivo (CRUD en vivo)
-│   │   ├── contact.js      # Formulario de cotizaciones y newsletter
-│   │   └── app.js          # Arranque y orquestación de la aplicación
+│   │   ├── site.js         # Catálogo, reseñas, formularios y reclamaciones
+│   │   ├── escena.js       # Animación de la portada al hacer scroll
+│   │   └── admin.js        # Panel: ingreso, inventario, mensajes y reclamos
 │   └── assets/
-│       └── images/         # Imágenes de alta resolución de maniquíes (sin copyright)
+│       ├── capas/          # Capas de la escena de Inicio
+│       ├── productos/      # Fotos de los productos del catálogo
+│       ├── img/            # Fotos de portada y fondos
+│       └── logo/           # Logo y favicons
 ├── .env.example            # Plantilla de variables de entorno
 ├── .gitignore              # Exclusiones de Git
 ├── LICENSE                 # Licencia de software libre MIT (100% legal)
@@ -137,9 +136,9 @@ Abre tu navegador en:
 
 ---
 
-## ⚙️ Panel de Administración en Vivo
-Dentro de la página web, haz clic en el botón **`⚙️ Panel Admin`** en la esquina superior derecha para:
-- Añadir nuevos maniquíes directamente a la base de datos SQLite.
-- Ver el inventario en tiempo real.
-- Revisar mensajes de clientes y cotizaciones recibidas.
-- Gestionar las hojas de reclamación registradas.
+## ⚙️ Panel de Administración
+Abre **`/admin`** (por ejemplo `http://localhost:8000/admin`) o haz clic en el enlace **Administración** al final del pie de cualquier página. Con la contraseña maestra puedes:
+- Ver el inventario y quitar productos del catálogo.
+- Añadir maniquíes nuevos (aparecen al instante en el catálogo).
+- Leer los mensajes de contacto de los clientes.
+- Revisar las hojas del Libro de Reclamaciones.

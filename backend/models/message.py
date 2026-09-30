@@ -38,7 +38,7 @@ def create_message(data: Dict[str, Any], ip_address: Optional[str] = None) -> Di
     }
 
 
-def get_all_messages(limit: int = 50) -> List[Dict[str, Any]]:
+def get_all_messages(limit: int = 1000) -> List[Dict[str, Any]]:
     """Obtiene los mensajes de contacto ordenados por fecha."""
     sql = "SELECT * FROM contact_messages ORDER BY created_at DESC LIMIT ?"
     return query_all(sql, (limit,))

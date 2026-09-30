@@ -64,32 +64,21 @@ def run_tests():
 
     static_paths = [
         "/",
-        "/css/variables.css",
-        "/css/reset.css",
-        "/css/main.css",
-        "/css/components.css",
-        "/css/legal.css",
-        "/js/vendor/gsap.min.js",
-        "/js/vendor/ScrollTrigger.min.js",
-        "/js/hero-scrolly.js",
-        "/js/config.js",
-        "/js/security.js",
-        "/js/api.js",
-        "/js/ui.js",
-        "/js/catalog.js",
-        "/js/reviews.js",
-        "/js/claims.js",
+        "/nosotros.html",
+        "/catalogo.html",
+        "/resenas.html",
+        "/reclamaciones.html",
+        "/privacidad.html",
+        "/admin",
+        "/css/site.css",
+        "/js/site.js",
+        "/js/escena.js",
         "/js/admin.js",
-        "/js/contact.js",
-        "/js/app.js",
-        "/assets/images/hero-showcase.jpg",
-        "/assets/images/hero-showroom.jpg",
-        "/assets/images/mannequin-aura.png",
-        "/assets/images/mannequin-noir.png",
-        "/assets/images/mannequin-titan.png",
-        "/assets/images/mannequin-busto.png",
-        "/assets/videos/mannequin-showcase.mp4",
-        "/assets/videos/hero-showroom.mp4",
+        "/assets/capas/fachada.webp",
+        "/assets/capas/interior.webp",
+        "/assets/img/portada-cusco.jpg",
+        "/assets/logo/logo-caleb.webp",
+        "/assets/productos/maniqui-femenino-realista.webp",
     ]
 
     for path in static_paths:
@@ -97,6 +86,11 @@ def run_tests():
         assert status == 200, f"Error en {path}: {status}"
         clean_type = ctype.split(";")[0]
         print(f"  [✔] {path:36} -> {status} ({clean_type}, {len(body)} bytes)")
+
+    # /admin debe abrir el panel, no caer en la portada
+    _, _, body = get("/admin")
+    assert "Panel de administración".encode("utf-8") in body, "/admin no sirve el panel"
+    print("  [✔] /admin abre el panel de administración")
 
     print("\n" + "=" * 60)
     print("🧪 2. Probando Endpoints REST API y Autenticación...")
@@ -131,7 +125,7 @@ def run_tests():
         "material": "Fibra de vidrio y resina",
         "color": "Platino Satinado",
         "dimensions": "180cm x 86cm x 62cm",
-        "image_url": "/assets/images/mannequin-aura.png",
+        "image_url": "/assets/productos/maniqui-femenino-realista.webp",
         "is_featured": True
     }, token=token)
     prod_id = new_prod["data"]["id"]
