@@ -272,8 +272,21 @@
     }
 
     window.addEventListener("scroll", request, { passive: true });
-    window.addEventListener("resize", setup);
-    mq.addEventListener("change", setup);
+    // Resize: una vez por cuadro y solo si cambió el tamaño real de la escena (en
+    // celulares la barra del navegador dispara "resize" al desplazarse)
+    let lastSize = "", resizeQueued = false;
+    window.addEventListener("resize", () => {
+        if (resizeQueued) return;
+        resizeQueued = true;
+        requestAnimationFrame(() => {
+            resizeQueued = false;
+            const size = `${sticky.clientWidth}x${sticky.clientHeight}`;
+            if (size === lastSize) return;
+            lastSize = size;
+            setup();
+        });
+    });
+    if (mq.addEventListener) mq.addEventListener("change", setup); else mq.addListener(setup); // iOS 13
     const root = document.documentElement;
     const withIntro = root.classList.contains("with-intro");
     const store = {

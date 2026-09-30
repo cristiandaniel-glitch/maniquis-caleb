@@ -147,7 +147,7 @@ main { overflow-x: clip; }
 .hero {
     position: relative; isolation: isolate; overflow: hidden;
     color: var(--blanco); background: var(--grafito);
-    min-height: 100svh;
+    min-height: 100vh; min-height: 100svh;
     display: flex; flex-direction: column; justify-content: flex-end;
 }
 .hero-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
@@ -160,9 +160,9 @@ main { overflow-x: clip; }
     padding: calc(var(--header-h) + 48px) var(--gutter) 72px;
 }
 .hero-content .lead { margin-top: 24px; color: rgba(255,255,255,.9); }
-.hero-page { min-height: 78svh; }
-.hero-short { min-height: 60svh; }
-.hero-claims { background: var(--grafito); min-height: 46svh; }
+.hero-page { min-height: 78vh; min-height: 78svh; }
+.hero-short { min-height: 60vh; min-height: 60svh; }
+.hero-claims { background: var(--grafito); min-height: 46vh; min-height: 46svh; }
 .hero-claims .display-xl { font-size: clamp(3rem, 7vw, 6rem); }
 
 /* ------------------------------ Bandas ------------------------------ */
@@ -209,7 +209,7 @@ main { overflow-x: clip; }
 .steps p { color: var(--piedra-clara); max-width: 30em; }
 
 /* Cita sobre foto */
-.hero-quote { min-height: 80svh; justify-content: center; }
+.hero-quote { min-height: 80vh; min-height: 80svh; justify-content: center; }
 .hero-quote .hero-shade { background: linear-gradient(90deg, rgba(0,0,0,.82) 0%, rgba(0,0,0,.6) 45%, rgba(0,0,0,.15) 100%); }
 .quote-content { padding-top: 96px; padding-bottom: 96px; }
 .quote-score { font-weight: 600; color: var(--cinta); }
@@ -321,7 +321,7 @@ main { overflow-x: clip; }
 
 /* ------------------------------ Diálogos ------------------------------ */
 .dialog {
-    width: min(980px, calc(100vw - 32px)); max-height: calc(100svh - 32px);
+    width: min(980px, calc(100vw - 32px)); max-height: calc(100vh - 32px); max-height: calc(100svh - 32px);
     padding: 0; border: 0; border-radius: 2px;
     background: var(--fibra); color: var(--grafito);
     box-shadow: 0 30px 80px rgba(0,0,0,.4);
@@ -513,7 +513,7 @@ main { overflow-x: clip; }
    aquí solo va la colocación base de cada capa.
    ========================================================================== */
 .scene { position: relative; height: 480vh; background: var(--grafito); }
-.scene.is-static { height: 100svh; }
+.scene.is-static { height: 100vh; height: 100svh; }
 .scene-sticky { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
 .scene img { user-select: none; -webkit-user-drag: none; }
 
@@ -555,22 +555,22 @@ main { overflow-x: clip; }
 .wall-right { right: 10.4%; text-align: right; }
 .wall-text h2 {
     font-family: var(--f-brush); font-weight: 400;
-    font-size: max(20px, 2.2cqw); line-height: 1.1;
+    font-size: max(20px, 2.2vw); font-size: max(20px, 2.2cqw); line-height: 1.1;
 }
 .wall-text p {
-    margin-top: .9cqw; font-size: max(12px, 1cqw); line-height: 1.5;
+    margin-top: .9vw; margin-top: .9cqw; font-size: max(12px, 1vw); font-size: max(12px, 1cqw); line-height: 1.5;
     color: #3B3834; max-width: 30em;
 }
 .wall-right p { margin-left: auto; }
 .wall-text a {
-    display: inline-block; margin-top: .9cqw; font-weight: 600; font-size: max(12px, .95cqw);
+    display: inline-block; margin-top: .9vw; margin-top: .9cqw; font-weight: 600; font-size: max(12px, .95vw); font-size: max(12px, .95cqw);
     text-decoration: underline; text-decoration-color: var(--cinta);
-    text-decoration-thickness: .2cqw; text-underline-offset: .3cqw;
+    text-decoration-thickness: .2vw; text-decoration-thickness: .2cqw; text-underline-offset: .3vw; text-underline-offset: .3cqw;
 }
 /* Trozo de cinta métrica sobre cada título */
 .wall-tape {
-    display: block; width: 7cqw; height: .7cqw; margin-bottom: 1cqw;
-    background: repeating-linear-gradient(90deg, rgba(35,35,38,.7) 0 1px, transparent 1px .35cqw), var(--cinta);
+    display: block; width: 7vw; width: 7cqw; height: .7vw; height: .7cqw; margin-bottom: 1vw; margin-bottom: 1cqw;
+    background: repeating-linear-gradient(90deg, rgba(35,35,38,.7) 0 1px, transparent 1px .35vw), var(--cinta); background: repeating-linear-gradient(90deg, rgba(35,35,38,.7) 0 1px, transparent 1px .35cqw), var(--cinta);
     mix-blend-mode: normal;
 }
 .wall-right .wall-tape { margin-left: auto; }
@@ -854,13 +854,13 @@ main { overflow-x: clip; }
    Ficha de producto de la rueda (entra y sale con efecto tornado, ver site.js)
    ========================================================================== */
 .pcard {
-    width: min(880px, calc(100vw - 32px)); max-height: calc(100svh - 32px);
+    width: min(880px, calc(100vw - 32px)); max-height: calc(100vh - 32px); max-height: calc(100svh - 32px);
     padding: 0; border: 0; border-radius: 24px; overflow: hidden;
     background: var(--grafito); color: var(--fibra);
     box-shadow: 0 40px 90px rgba(0,0,0,.55), 0 0 0 1px rgba(240,194,59,.18);
 }
 .pcard[open] { display: grid; grid-template-columns: 1fr 1.15fr; }
-.pcard::backdrop { background: rgba(12,12,14,.5); backdrop-filter: blur(3px); }
+.pcard::backdrop { background: rgba(12,12,14,.5); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
 .pcard[open]::backdrop { animation: fade-in .5s ease both; }
 .pcard.is-closing::backdrop { animation: fade-out .7s ease both; }
 @keyframes fade-in { from { opacity: 0; } }
@@ -1189,8 +1189,8 @@ body { font-size: 1.125rem; }
 .spec-table td, .spec-table thead th { font-size: 1.08rem; }
 .review p { font-size: 1.15rem; line-height: 1.6; }
 .review-who { font-size: 1.02rem; }
-.wall-text p { font-size: max(14px, 1.12cqw); }
-.wall-text a { font-size: max(14px, 1.05cqw); }
+.wall-text p { font-size: max(14px, 1.12vw); font-size: max(14px, 1.12cqw); }
+.wall-text a { font-size: max(14px, 1.05vw); font-size: max(14px, 1.05cqw); }
 .band-quote blockquote footer, .quote-visit address { font-size: 1.15rem; }
 .sc-desc { font-size: 1.12rem; }
 .sc-specs dt { font-size: .9rem; }
@@ -1345,7 +1345,7 @@ body { font-size: 1.125rem; }
 /* Equipos modestos o "ahorro de datos": se quitan los efectos más caros
    (reflejos, desenfoques y sombras por filtro). La clase la pone site.js. */
 .lite .cf-card { -webkit-box-reflect: none; }
-.lite .pcard::backdrop, .lite .dialog::backdrop { backdrop-filter: none; }
+.lite .pcard::backdrop, .lite .dialog::backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; }
 .lite .ring img, .lite .prop, .lite .float, .lite .cast, .lite .sc-float img, .lite .sc-next img,
 .lite .product-media img, .lite .quote-figure img, .lite .sc-flyer { filter: none; }
 .lite .f-percha { filter: brightness(.45); }
@@ -1607,3 +1607,9 @@ body { font-size: 1.125rem; }
 .ring .lineup-label strong, [data-page="inicio"] .ring .lineup-label strong { font-size: clamp(.8rem, calc(var(--cw) * .11), 1.75rem); }
 .ring .lineup-label span { font-size: clamp(.62rem, calc(var(--cw) * .052), .9rem); }
 .ring .lineup-label { left: clamp(8px, calc(var(--cw) * .064), 16px); right: clamp(8px, calc(var(--cw) * .064), 16px); bottom: clamp(8px, calc(var(--cw) * .064), 16px); }
+
+/* iPhone con iOS 15 o anterior: sin overflow: clip, el recorte horizontal se
+   hace en el body (no rompe el position: sticky de la escena) */
+@supports not (overflow: clip) {
+    body { overflow-x: hidden; }
+}

@@ -473,7 +473,8 @@
             const compact = window.matchMedia("(max-width: 960px)");
             const placeNext = () => (compact.matches ? $(".sc-product") : $(".sc-side")).append($("#sc-next"));
             placeNext();
-            compact.addEventListener("change", placeNext);
+            // addListener: iPhone con iOS 13 no tiene addEventListener en matchMedia
+            if (compact.addEventListener) compact.addEventListener("change", placeNext); else compact.addListener(placeNext);
             document.addEventListener("keydown", (e) => {
                 if (e.target.closest("input, textarea, select, dialog")) return;
                 if (window.scrollY > window.innerHeight * 0.6) return;
@@ -811,13 +812,17 @@
                 for (let a = 0; a <= 180; a += 2) m = Math.max(m, Math.abs(edges(R, cw, a * Math.PI / 180)[1]));
                 return m;
             };
-            let cw = baseW, R = 0;
-            for (; cw >= 90; cw -= 4) {
-                R = cw / 2;
-                while (!fits(R, cw) && R < 4000) R += 2;
-                if (extent(R, cw) <= half) break;
-            }
-            cw = Math.max(cw, 90);
+            // Radio mínimo sin encimar: pasos de 8 px y luego ajuste fino de 1 px
+            const needR = (w) => {
+                let R = w / 2;
+                while (R < 4000 && !fits(R, w)) R += 8;
+                let r = Math.max(w / 2, R - 8);
+                while (r < R && !fits(r, w)) r += 1;
+                return r;
+            };
+            // Tarjeta más grande que cabe a lo ancho (de 4 en 4 px desde el tamaño normal)
+            let cw = baseW, R = needR(cw);
+            while (cw > 90 && extent(R, cw) > half) { cw = Math.max(90, cw - 4); R = needR(cw); }
             if (cw !== baseW) {
                 stage.style.setProperty("--cw", `${cw}px`);
                 stage.style.setProperty("--ch", `${Math.round(cw * ratio)}px`);
@@ -839,10 +844,10 @@
             const MARGIN = 20;
             this.shiftY = 0;
             stage.style.height = "";
-            for (let pass = 0; pass < 3; pass += 1) {
+            for (let pass = 0; pass < 2; pass += 1) {
                 const S = stage.getBoundingClientRect();
                 let top = Infinity, bottom = -Infinity;
-                for (let a = 0; a < 360; a += this.step / 3) {
+                for (let a = 0; a < this.step; a += this.step / 4) {
                     this.angle = a;
                     this.apply();
                     for (const li of this.items) {
@@ -920,7 +925,14 @@
             if ("IntersectionObserver" in window) {
                 new IntersectionObserver(([entry]) => { this.visible = entry.isIntersecting; this.start(); }).observe(stage);
             }
-            window.addEventListener("resize", () => this.layout());
+            // En celulares, al desplazarse la barra del navegador aparece/desaparece y
+            // dispara "resize": solo se recalcula si cambió el ancho, una vez por cuadro
+            let lastW = window.innerWidth, pending = false;
+            window.addEventListener("resize", () => {
+                if (window.innerWidth === lastW || pending) return;
+                pending = true;
+                requestAnimationFrame(() => { pending = false; lastW = window.innerWidth; this.layout(); });
+            });
         },
     });
     const Ring = makeRing("#ring-stage");
