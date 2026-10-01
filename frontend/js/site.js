@@ -534,6 +534,14 @@
             const n = this.items.length;
             const target = this.items[(this.index + dir + n) % n];
             if (reduceMotion.matches) { this.render(target, false); return; }
+            // Si la foto principal o la vista previa no se ven enteras (página bajada,
+            // debajo del menú), no hay vuelo: cambio suave en el lugar
+            const headerBottom = ($("#site-header") || document.body).getBoundingClientRect().bottom;
+            const inView = (r) => r.width > 0 && r.top >= headerBottom - 4 && r.bottom <= window.innerHeight + 4;
+            if (!inView($("#sc-img").getBoundingClientRect()) || !inView($("#sc-next-img").getBoundingClientRect())) {
+                this.render(target, true);
+                return;
+            }
             this.busy = true;
             const main = $("#sc-img");
             const thumb = $("#sc-next-img");
@@ -672,10 +680,15 @@
         return 0.2126 * r + 0.7152 * g + 0.0722 * b;
     }
 
-    /* ------------------- ficha de producto (efecto tornado) ------------------- */
+    /* --------------------------- ficha de producto --------------------------- */
 
-    // Se abre girando en espiral desde la foto tocada y al cerrar vuelve
-    // "absorbida" hacia el centro de la rueda. La rueda sigue girando detrás.
+    // Se abre creciendo desde la foto tocada y se cierra con un desvanecido corto.
+    // Solo se anima transform y opacity (lo hace la tarjeta gráfica): fluido aun en
+    // celulares de gama media. Mientras está abierta, la rueda de atrás se detiene.
+    let cardOpen = false;           // con la ficha abierta, las ruedas no giran
+    const rings = [];
+    const resumeRings = () => rings.forEach((r) => r.start());
+
     const ProductCard = {
         open(p, fromEl) {
             const d = $("#pcard");
@@ -700,40 +713,46 @@
             );
             $("#pc-catalog").href = `/catalogo.html?linea=${encodeURIComponent(p.category_slug || "")}`;
             $("#pc-wa").href = waLink(quoteMsg(p, name));
+            // Fondo del color de cada producto, como en el catálogo (un maniquí negro
+            // no se pierde sobre fondo oscuro)
+            const bg = SHOWCASE_BG[Showcase.slug(p)] || "#4E6C78";
+            $(".pc-media", d).style.setProperty("--pc-bg", bg);
 
+            cardOpen = true;
             d.showModal();
-            if (reduceMotion.matches) return;
+            // El foco va a la X (no a un botón de abajo, que desplazaba la ficha)
+            d.scrollTop = 0;
+            $(".pc-body", d).scrollTop = 0;
+            $(".pc-close", d).focus({ preventScroll: true });
+            if (reduceMotion.matches || !fromEl) return;
             const to = d.getBoundingClientRect();
             const from = fromEl.getBoundingClientRect();
             const dx = (from.left + from.width / 2) - (to.left + to.width / 2);
             const dy = (from.top + from.height / 2) - (to.top + to.height / 2);
-            const s0 = Math.max(0.08, from.width / to.width);
+            const s0 = Math.min(0.6, Math.max(0.2, from.width / to.width));
             d.animate([
-                { transform: `translate(${dx}px, ${dy}px) scale(${s0}) rotate(-540deg) skewX(18deg)`, filter: "blur(14px)", opacity: 0 },
-                { offset: 0.55, transform: `translate(${dx * 0.2}px, ${dy * 0.2}px) scale(.72) rotate(-110deg) skewX(6deg)`, filter: "blur(5px)", opacity: 1 },
-                { transform: "none", filter: "blur(0)", opacity: 1 },
-            ], { duration: 950, easing: "cubic-bezier(.2, .8, .2, 1)" });
+                { transform: `translate(${dx}px, ${dy}px) scale(${s0})`, opacity: 0 },
+                { transform: "none", opacity: 1 },
+            ], { duration: 300, easing: "cubic-bezier(.2, .8, .2, 1)" });
         },
 
         close() {
             const d = $("#pcard");
             if (!d.open || this.closing) return;
-            if (reduceMotion.matches) { d.close(); return; }
-            this.closing = true;
-            const to = d.getBoundingClientRect();
-            const stage = $("#ring-stage").getBoundingClientRect();
-            const dx = (stage.left + stage.width / 2) - (to.left + to.width / 2);
-            const dy = (stage.top + stage.height / 2) - (to.top + to.height / 2);
-            d.classList.add("is-closing");
-            d.animate([
-                { transform: "none", filter: "blur(0)", opacity: 1 },
-                { offset: 0.45, transform: `translate(${dx * 0.2}px, ${dy * 0.2}px) scale(.7) rotate(120deg) skewX(-6deg)`, filter: "blur(4px)", opacity: 1 },
-                { transform: `translate(${dx}px, ${dy}px) scale(.05) rotate(620deg) skewX(-18deg)`, filter: "blur(16px)", opacity: 0 },
-            ], { duration: 700, easing: "cubic-bezier(.55, 0, .75, .3)" }).finished.then(() => {
+            const done = () => {
                 d.close();
                 d.classList.remove("is-closing");
                 this.closing = false;
-            });
+                cardOpen = false;
+                resumeRings();
+            };
+            if (reduceMotion.matches) { done(); return; }
+            this.closing = true;
+            d.classList.add("is-closing");
+            d.animate([
+                { transform: "none", opacity: 1 },
+                { transform: "translateY(12px) scale(.96)", opacity: 0 },
+            ], { duration: 180, easing: "ease-in" }).finished.then(done, done);
         },
 
         bind() {
@@ -884,14 +903,14 @@
 
         // El bucle solo corre mientras la rueda está en pantalla
         start() {
-            if (this.running || !this.visible) return;
+            if (this.running || !this.visible || cardOpen) return;
             this.running = true;
             this.last = 0;
             requestAnimationFrame((t) => this.loop(t));
         },
 
         loop(t) {
-            if (!this.visible || (this.target === null && reduceMotion.matches)) { this.running = false; return; }
+            if (!this.visible || cardOpen || (this.target === null && reduceMotion.matches)) { this.running = false; return; }
             const dt = this.last ? Math.min(64, t - this.last) : 16;
             this.last = t;
             if (this.target !== null) {
@@ -936,6 +955,7 @@
         },
     });
     const Ring = makeRing("#ring-stage");
+    rings.push(Ring);
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     if (CURRENT === "catalogo") {
@@ -1301,7 +1321,11 @@
 
     $("#year").textContent = String(new Date().getFullYear());
     updateHeader();
-    if (CURRENT === "nosotros" && $("#about-ring")) makeRing("#about-ring").mount($("#about-lineup"));
+    if (CURRENT === "nosotros" && $("#about-ring")) {
+        const about = makeRing("#about-ring");
+        rings.push(about);
+        about.mount($("#about-lineup"));
+    }
     if (CURRENT === "inicio") { ProductCard.bind(); Catalog.renderLineup(); Reviews.homeQuote(); }
     if (CURRENT === "catalogo") Catalog.show(new URLSearchParams(location.search).get("linea"));
     if (CURRENT === "resenas") Reviews.show();
