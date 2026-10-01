@@ -684,11 +684,7 @@
 
     // Se abre creciendo desde la foto tocada y se cierra con un desvanecido corto.
     // Solo se anima transform y opacity (lo hace la tarjeta gráfica): fluido aun en
-    // celulares de gama media. Mientras está abierta, la rueda de atrás se detiene.
-    let cardOpen = false;           // con la ficha abierta, las ruedas no giran
-    const rings = [];
-    const resumeRings = () => rings.forEach((r) => r.start());
-
+    // celulares de gama media. La rueda de atrás sigue girando.
     const ProductCard = {
         open(p, fromEl) {
             const d = $("#pcard");
@@ -718,7 +714,6 @@
             const bg = SHOWCASE_BG[Showcase.slug(p)] || "#4E6C78";
             $(".pc-media", d).style.setProperty("--pc-bg", bg);
 
-            cardOpen = true;
             d.showModal();
             // El foco va a la X (no a un botón de abajo, que desplazaba la ficha)
             d.scrollTop = 0;
@@ -743,8 +738,6 @@
                 d.close();
                 d.classList.remove("is-closing");
                 this.closing = false;
-                cardOpen = false;
-                resumeRings();
             };
             if (reduceMotion.matches) { done(); return; }
             this.closing = true;
@@ -903,14 +896,14 @@
 
         // El bucle solo corre mientras la rueda está en pantalla
         start() {
-            if (this.running || !this.visible || cardOpen) return;
+            if (this.running || !this.visible) return;
             this.running = true;
             this.last = 0;
             requestAnimationFrame((t) => this.loop(t));
         },
 
         loop(t) {
-            if (!this.visible || cardOpen || (this.target === null && reduceMotion.matches)) { this.running = false; return; }
+            if (!this.visible || (this.target === null && reduceMotion.matches)) { this.running = false; return; }
             const dt = this.last ? Math.min(64, t - this.last) : 16;
             this.last = t;
             if (this.target !== null) {
@@ -955,7 +948,6 @@
         },
     });
     const Ring = makeRing("#ring-stage");
-    rings.push(Ring);
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     if (CURRENT === "catalogo") {
@@ -1322,9 +1314,7 @@
     $("#year").textContent = String(new Date().getFullYear());
     updateHeader();
     if (CURRENT === "nosotros" && $("#about-ring")) {
-        const about = makeRing("#about-ring");
-        rings.push(about);
-        about.mount($("#about-lineup"));
+        makeRing("#about-ring").mount($("#about-lineup"));
     }
     if (CURRENT === "inicio") { ProductCard.bind(); Catalog.renderLineup(); Reviews.homeQuote(); }
     if (CURRENT === "catalogo") Catalog.show(new URLSearchParams(location.search).get("linea"));
