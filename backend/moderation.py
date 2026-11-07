@@ -24,7 +24,6 @@ _ROOTS = [
 # Palabras cortas que solo cuentan como palabra exacta (evitar falsos positivos
 # como "computadora", "reputación", "disputa")
 _EXACT = {"cula", "caca", "cabro"}
-
 _LEET = str.maketrans({"0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "@": "a", "$": "s", "!": "i"})
 
 
