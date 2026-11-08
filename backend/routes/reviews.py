@@ -4,48 +4,26 @@ Permite consultar opiniones públicas y enviar nuevas reseñas verificadas.
 """
 
 from typing import Any, Dict, Tuple
-from backend.database import execute_mutation, query_all
+from backend.database import execute_insert, query_all
 from backend.moderation import contains_profanity
-
-
-def ensure_reviews_table():
-    """Garantiza que la tabla de reseñas exista en SQLite."""
-    sql = """
-    CREATE TABLE IF NOT EXISTS reviews (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        boutique TEXT NOT NULL,
-        city TEXT DEFAULT 'Cusco',
-        product_model TEXT,
-        rating INTEGER DEFAULT 5,
-        comment TEXT NOT NULL,
-        is_verified INTEGER DEFAULT 1,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-    """
-    execute_mutation(sql)
-    # Sin reseñas de ejemplo: solo se muestran las que escriben los clientes.
 
 
 def handle_get_reviews() -> Tuple[int, Dict[str, Any]]:
     """Retorna la lista de todas las reseñas ordenadas por fecha reciente."""
     try:
-        ensure_reviews_table()
         reviews = query_all("SELECT * FROM reviews ORDER BY id DESC;")
         return 200, {
             "status": "success",
             "total": len(reviews),
             "reviews": reviews
         }
-    except Exception as e:
-        return 500, {"status": "error", "message": f"Error al consultar reseñas: {str(e)}"}
+    except Exception:
+        return 500, {"status": "error", "message": "No se pudieron consultar las reseñas. Intente nuevamente."}
 
 
 def handle_create_review(data: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
     """Valida e inserta una nueva reseña de cliente en la base de datos."""
     try:
-        ensure_reviews_table()
-
         name = str(data.get("name", "")).strip()
         boutique = str(data.get("boutique", "")).strip()  # opcional
         city = str(data.get("city", "Cusco")).strip() or "Cusco"
@@ -64,10 +42,10 @@ def handle_create_review(data: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
         if rating < 1 or rating > 5:
             rating = 5
 
-        new_id = execute_mutation(
+        new_id = execute_insert(
             """INSERT INTO reviews (name, boutique, city, product_model, rating, comment, is_verified)
-               VALUES (?, ?, ?, ?, ?, ?, 1);""",
-            (name, boutique, city, product_model, rating, comment)
+               VALUES (%s, %s, %s, %s, %s, %s, TRUE);""",
+            (name, boutique, city, product_model, rating, comment),
         )
 
         return 201, {
@@ -84,5 +62,5 @@ def handle_create_review(data: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
                 "is_verified": 1
             }
         }
-    except Exception as e:
-        return 500, {"status": "error", "message": f"Error al guardar la reseña: {str(e)}"}
+    except Exception:
+        return 500, {"status": "error", "message": "No se pudo guardar la reseña. Intente nuevamente."}

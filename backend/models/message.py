@@ -3,7 +3,7 @@ Modelo para Mensajes del Formulario de Contacto.
 """
 
 from typing import Any, Dict, List, Optional
-from backend.database import execute_mutation, query_all, query_one
+from backend.database import execute_insert, query_all
 from backend.security import is_valid_email, is_valid_phone, sanitize_string
 
 
@@ -26,9 +26,9 @@ def create_message(data: Dict[str, Any], ip_address: Optional[str] = None) -> Di
 
     sql = """
         INSERT INTO contact_messages (name, email, phone, subject, message, status, ip_address)
-        VALUES (?, ?, ?, ?, ?, 'unread', ?)
+        VALUES (%s, %s, %s, %s, %s, 'unread', %s::inet)
     """
-    msg_id = execute_mutation(sql, (name, email, phone, subject, message, ip_address or "127.0.0.1"))
+    msg_id = execute_insert(sql, (name, email, phone, subject, message, ip_address or "127.0.0.1"))
     return {
         "id": msg_id,
         "name": name,
@@ -40,5 +40,5 @@ def create_message(data: Dict[str, Any], ip_address: Optional[str] = None) -> Di
 
 def get_all_messages(limit: int = 1000) -> List[Dict[str, Any]]:
     """Obtiene los mensajes de contacto ordenados por fecha."""
-    sql = "SELECT * FROM contact_messages ORDER BY created_at DESC LIMIT ?"
+    sql = "SELECT * FROM contact_messages ORDER BY created_at DESC LIMIT %s"
     return query_all(sql, (limit,))

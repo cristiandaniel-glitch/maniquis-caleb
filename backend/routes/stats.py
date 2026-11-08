@@ -8,8 +8,8 @@ from backend.database import query_one
 
 def handle_get_stats() -> Dict[str, Any]:
     """Maneja GET /api/stats."""
-    p_count = query_one("SELECT COUNT(*) as count FROM products WHERE is_active = 1")["count"]
-    c_count = query_one("SELECT COUNT(*) as count FROM categories WHERE is_active = 1")["count"]
+    p_count = query_one("SELECT COUNT(*) as count FROM products WHERE is_active = TRUE")["count"]
+    c_count = query_one("SELECT COUNT(*) as count FROM categories WHERE is_active = TRUE")["count"]
     m_count = query_one("SELECT COUNT(*) as count FROM contact_messages")["count"]
     cl_count = query_one("SELECT COUNT(*) as count FROM claims_book")["count"]
     s_count = query_one("SELECT COUNT(*) as count FROM subscribers WHERE status = 'active'")["count"]

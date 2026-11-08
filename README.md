@@ -2,7 +2,7 @@
 
 Un esqueleto web profesional, moderno, seguro y 100% legal diseñado para **Maniquí Studio & Boutique** (o adaptable a cualquier tienda, catálogo y plataforma digital).
 
-Incluye **Frontend interactivo** de alta gama, **Backend REST API** en Python nativo, **Base de Datos SQLite** con migraciones y semillas, **Módulo de Seguridad Integral**, **Libro de Reclamaciones Virtual** conforme a ley y **Centro de Políticas Legales** libres de derechos de autor.
+Incluye **Frontend interactivo** de alta gama, **Backend REST API** en Python nativo, **PostgreSQL alojado en Supabase**, **Módulo de Seguridad Integral**, **Libro de Reclamaciones Virtual** conforme a ley y **Centro de Políticas Legales** libres de derechos de autor.
 
 ---
 
@@ -13,7 +13,7 @@ PaginaWebManiqui/
 ├── backend/
 │   ├── app.py              # Servidor HTTP multihilo, enrutador REST y despachador estático
 │   ├── config.py           # Configuración central (variables de entorno, CORS, límites)
-│   ├── database.py         # Conexión SQLite segura (consultas parametrizadas)
+│   ├── database.py         # Pool PostgreSQL/Supabase y consultas parametrizadas
 │   ├── security.py         # Cabeceras CSP, sanitización XSS, validadores y rate limiter
 │   ├── models/             # Lógica de negocio y modelos de datos
 │   │   ├── product.py      # CRUD de maniquíes y productos
@@ -30,10 +30,9 @@ PaginaWebManiqui/
 │       ├── stats.py
 │       └── legal.py
 ├── database/
-│   ├── schema.sql          # Tablas con claves foráneas, restricciones e índices
-│   ├── seed.sql            # Datos iniciales realistas 100% libres de derechos
-│   ├── init_db.py          # Script CLI de inicialización de base de datos
-│   └── maniqui.db          # Base de datos SQLite generada
+│   ├── schema.postgres.sql # Esquema versionado para Supabase/PostgreSQL
+│   ├── migrate_sqlite_to_postgres.py # Migración única e idempotente desde SQLite
+│   └── README.postgres.md  # Configuración de Supabase, equipo y migración
 ├── frontend/
 │   ├── index.html          # Inicio: escena por capas (fachada, vitrina, interior)
 │   ├── nosotros.html       # Quiénes somos, materiales y contacto
@@ -66,7 +65,7 @@ PaginaWebManiqui/
 ## 🛡️ Seguridad Implementada
 
 1. **Protección contra Inyecciones SQL (SQLi)**:
-   - Todas las consultas a la base de datos están estrictamente parametrizadas mediante enlaces `?` en SQLite.
+   - Todas las consultas a PostgreSQL están estrictamente parametrizadas mediante enlaces `%s` de psycopg.
 2. **Prevención de Cross-Site Scripting (XSS)**:
    - Sanitización de entradas en el servidor (`backend/security.py`) y escape de caracteres HTML antes de renderizar en el cliente (`frontend/js/security.js`).
 3. **Cabeceras HTTP de Seguridad (Security Headers)**:
@@ -100,6 +99,18 @@ PaginaWebManiqui/
 ---
 
 ## 🚀 Cómo Ejecutar el Proyecto
+
+Antes del primer inicio, instala las dependencias y configura la conexión privada:
+
+```bash
+python -m pip install -r requirements.txt
+cp .env.example .env
+```
+
+Completa `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_SALT` y
+`ADMIN_PASSWORD_HASH` en `.env`. Ejecuta primero `database/schema.postgres.sql`
+en el SQL Editor de Supabase. Consulta `database/README.postgres.md` para la
+migración opcional de datos SQLite y las reglas de staging/producción.
 
 ### Opción 1: Con el script de inicio rápido (Recomendado)
 ```bash

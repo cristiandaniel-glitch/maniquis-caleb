@@ -13,12 +13,7 @@ echo "========================================================"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
-# 1. Verificar existencia de base de datos
-if [ ! -f "database/maniqui.db" ]; then
-    echo "[*] Base de datos no encontrada. Inicializando..."
-    python3 database/init_db.py
-fi
-
-# 2. Iniciar servidor principal
+# DATABASE_URL debe estar definida en .env o en las variables del entorno.
+# Instalar una sola vez: python3 -m pip install -r requirements.txt
 echo "[*] Arrancando servidor HTTP y REST API..."
 python3 server.py

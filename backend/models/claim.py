@@ -4,10 +4,8 @@ Cumple con la normativa legal de protección al consumidor y comercio electróni
 """
 
 import datetime
-import sqlite3
-import time
 from typing import Any, Dict, List, Optional
-from backend.database import execute_mutation, query_all, query_one
+from backend.database import get_db_connection, query_all, query_one
 from backend.security import (
     is_valid_doc_number,
     is_valid_email,
@@ -22,7 +20,7 @@ def generate_claim_code(claim_type: str) -> str:
     prefix = "REC" if claim_type == "Reclamo" else "QUE"
     
     # Siguiente al número más alto del año (no se repite aunque se borre alguno)
-    sql = "SELECT MAX(CAST(substr(claim_code, 10) AS INTEGER)) AS last FROM claims_book WHERE claim_code LIKE ?"
+    sql = "SELECT MAX(CAST(substr(claim_code, 10) AS INTEGER)) AS last FROM claims_book WHERE claim_code LIKE %s"
     res = query_one(sql, (f"{prefix}-{year}-%",))
     last = (res["last"] if res and res["last"] is not None else 0)
     return f"{prefix}-{year}-{last + 1:04d}"
@@ -40,7 +38,7 @@ def create_claim(data: Dict[str, Any]) -> Dict[str, Any]:
     email = sanitize_string(data.get("email", ""))
     phone = sanitize_string(data.get("phone", ""))
     address = sanitize_string(data.get("address", ""))
-    is_minor = 1 if data.get("is_minor") else 0
+    is_minor = bool(data.get("is_minor"))
     guardian_name = sanitize_string(data.get("guardian_name", ""))
 
     contracted_good = data.get("contracted_good", "Producto")
@@ -61,6 +59,8 @@ def create_claim(data: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("Debe ingresar un correo electrónico válido.")
     if not is_valid_phone(phone):
         raise ValueError("El número telefónico no tiene un formato válido.")
+    if is_minor and len(guardian_name) < 3:
+        raise ValueError("Debe ingresar el nombre del padre, madre o apoderado del menor de edad.")
     if not good_description or len(good_description) < 5:
         raise ValueError("Debe detallar el bien o servicio contratado.")
     if not claim_description or len(claim_description) < 10:
@@ -75,28 +75,35 @@ def create_claim(data: Dict[str, Any]) -> Dict[str, Any]:
             contracted_good, amount_claimed, good_description,
             claim_description, consumer_request, status
         ) VALUES (
-            ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?,
-            ?, ?, ?,
-            ?, ?, 'Pendiente'
+            %s, %s, %s, %s, %s,
+            %s, %s, %s, %s, %s,
+            %s, %s, %s,
+            %s, %s, 'Pendiente'
         )
     """
-    # Varios procesos atienden a la vez: si dos reclamos toman el mismo número,
-    # la restricción UNIQUE rechaza el segundo y se reintenta con el siguiente.
-    for attempt in range(8):
-        claim_code = generate_claim_code(claim_type)
-        try:
-            execute_mutation(sql, (
-                claim_code, claim_type, full_name, doc_type, doc_number,
-                email, phone, address, is_minor, guardian_name,
-                contracted_good, amount_claimed, good_description,
-                claim_description, consumer_request
-            ))
-            break
-        except sqlite3.IntegrityError:
-            if attempt == 7:
-                raise
-            time.sleep(0.02 * (attempt + 1))
+    year = datetime.datetime.now().year
+    prefix = "REC" if claim_type == "Reclamo" else "QUE"
+
+    # Serializa solo la generación del código para el tipo y año respectivos.
+    # Evita duplicados con varios procesos/backend workers sin relajar UNIQUE.
+    with get_db_connection() as conn:
+        conn.execute(
+            "SELECT pg_advisory_xact_lock(hashtext(%s))",
+            (f"claim-code:{prefix}:{year}",),
+        )
+        row = conn.execute(
+            """SELECT MAX(CAST(substr(claim_code, 10) AS INTEGER)) AS last
+               FROM claims_book WHERE claim_code LIKE %s""",
+            (f"{prefix}-{year}-%",),
+        ).fetchone()
+        last = row["last"] if row and row["last"] is not None else 0
+        claim_code = f"{prefix}-{year}-{int(last) + 1:04d}"
+        conn.execute(sql, (
+            claim_code, claim_type, full_name, doc_type, doc_number,
+            email, phone, address, bool(is_minor), guardian_name or None,
+            contracted_good, amount_claimed, good_description,
+            claim_description, consumer_request,
+        ))
 
     return {
         "claim_code": claim_code,
@@ -110,11 +117,11 @@ def create_claim(data: Dict[str, Any]) -> Dict[str, Any]:
 
 def get_claim_by_code(claim_code: str) -> Optional[Dict[str, Any]]:
     """Obtiene una hoja de reclamación por su código único de seguimiento."""
-    sql = "SELECT * FROM claims_book WHERE claim_code = ?"
+    sql = "SELECT * FROM claims_book WHERE claim_code = %s"
     return query_one(sql, (claim_code.strip(),))
 
 
 def get_all_claims(limit: int = 1000) -> List[Dict[str, Any]]:
     """Obtiene el listado de reclamaciones para gestión administrativa."""
-    sql = "SELECT * FROM claims_book ORDER BY created_at DESC LIMIT ?"
+    sql = "SELECT * FROM claims_book ORDER BY created_at DESC LIMIT %s"
     return query_all(sql, (limit,))

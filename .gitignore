@@ -10,9 +10,9 @@ __pycache__/
 *$py.class
 *.so
 
-# Bases de datos temporales (descomentar si no se desea versionar)
-# database/*.db
-# database/*.sqlite3
+# Bases de datos locales: nunca versionar datos de clientes o secretos.
+database/*.db
+database/*.sqlite3
 
 # Variables de entorno y secretos
 .env
@@ -35,3 +35,6 @@ Thumbs.db
 # SQLite runtime journal files
 database/*.db-shm
 database/*.db-wal
+
+# Estado efímero de la caché de cada proceso
+database/.api-cache-version

@@ -4,7 +4,7 @@ Modelo y lógica de negocio para Productos / Maniquíes.
 
 import re
 from typing import Any, Dict, List, Optional
-from backend.database import execute_mutation, query_all, query_one
+from backend.database import execute_insert, execute_mutation, query_all, query_one
 from backend.security import sanitize_string
 
 
@@ -20,27 +20,27 @@ def get_all_products(
     category_id: Optional[int] = None,
     search: Optional[str] = None,
     featured_only: bool = False,
-    is_active: int = 1
+    is_active: bool = True
 ) -> List[Dict[str, Any]]:
     """Obtiene el listado de productos con filtros seguros."""
     sql = """
         SELECT p.*, c.name as category_name, c.slug as category_slug
         FROM products p
         JOIN categories c ON p.category_id = c.id
-        WHERE p.is_active = ?
+        WHERE p.is_active = %s
     """
     params: List[Any] = [is_active]
 
     if category_id:
-        sql += " AND p.category_id = ?"
+        sql += " AND p.category_id = %s"
         params.append(category_id)
 
     if featured_only:
-        sql += " AND p.is_featured = 1"
+        sql += " AND p.is_featured = TRUE"
 
     if search:
         search_pattern = f"%{search.strip()}%"
-        sql += " AND (p.name LIKE ? OR p.description LIKE ? OR p.material LIKE ? OR p.sku LIKE ?)"
+        sql += " AND (p.name ILIKE %s OR p.description ILIKE %s OR p.material ILIKE %s OR p.sku ILIKE %s)"
         params.extend([search_pattern, search_pattern, search_pattern, search_pattern])
 
     sql += " ORDER BY p.is_featured DESC, p.created_at DESC"
@@ -53,7 +53,7 @@ def get_product_by_id(product_id: int) -> Optional[Dict[str, Any]]:
         SELECT p.*, c.name as category_name, c.slug as category_slug
         FROM products p
         JOIN categories c ON p.category_id = c.id
-        WHERE p.id = ?
+        WHERE p.id = %s
     """
     return query_one(sql, (product_id,))
 
@@ -64,7 +64,7 @@ def get_product_by_slug(slug: str) -> Optional[Dict[str, Any]]:
         SELECT p.*, c.name as category_name, c.slug as category_slug
         FROM products p
         JOIN categories c ON p.category_id = c.id
-        WHERE p.slug = ?
+        WHERE p.slug = %s
     """
     return query_one(sql, (slug,))
 
@@ -89,7 +89,7 @@ def create_product(data: Dict[str, Any]) -> int:
     price = float(data.get("price", 0.0))
     stock = int(data.get("stock", 1))
     image_url = sanitize_string(data.get("image_url") or "/assets/productos/maniqui-femenino-abstracto-blanco.webp")
-    is_featured = 1 if data.get("is_featured") else 0
+    is_featured = bool(data.get("is_featured"))
     slug = slugify(name)
 
     # Asegurar slug único
@@ -102,9 +102,9 @@ def create_product(data: Dict[str, Any]) -> int:
             category_id, name, slug, sku, description,
             material, color, dimensions, price, stock,
             image_url, is_featured, is_active
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
     """
-    return execute_mutation(sql, (
+    return execute_insert(sql, (
         category_id, name, slug, sku, description,
         material, color, dimensions, price, stock,
         image_url, is_featured
@@ -127,14 +127,14 @@ def update_product(product_id: int, data: Dict[str, Any]) -> bool:
     price = float(data.get("price", existing["price"]))
     stock = int(data.get("stock", existing["stock"]))
     image_url = sanitize_string(data.get("image_url", existing["image_url"]))
-    is_featured = 1 if data.get("is_featured") is True or data.get("is_featured") == 1 else 0
+    is_featured = data.get("is_featured") is True or data.get("is_featured") == 1
 
     sql = """
         UPDATE products SET
-            category_id = ?, name = ?, sku = ?, description = ?,
-            material = ?, color = ?, dimensions = ?, price = ?,
-            stock = ?, image_url = ?, is_featured = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
+            category_id = %s, name = %s, sku = %s, description = %s,
+            material = %s, color = %s, dimensions = %s, price = %s,
+            stock = %s, image_url = %s, is_featured = %s, updated_at = CURRENT_TIMESTAMP
+        WHERE id = %s
     """
     execute_mutation(sql, (
         category_id, name, sku, description,
@@ -146,6 +146,6 @@ def update_product(product_id: int, data: Dict[str, Any]) -> bool:
 
 def delete_product(product_id: int) -> bool:
     """Elimina o desactiva lógicamente un producto."""
-    sql = "UPDATE products SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    sql = "UPDATE products SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP WHERE id = %s"
     execute_mutation(sql, (product_id,))
     return True

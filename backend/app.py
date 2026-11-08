@@ -18,6 +18,7 @@ import urllib.parse
 from typing import Any, Dict, Optional, Tuple
 
 from backend.config import (
+    API_CACHE_VERSION_FILE,
     CORS_ALLOWED_ORIGINS,
     HOST,
     MAX_CONTENT_LENGTH,
@@ -43,12 +44,11 @@ from backend.routes.stats import handle_get_stats
 from backend.security import (
     FORBIDDEN_EXTENSIONS,
     check_rate_limit,
-    ensure_login_attempts_table,
     get_security_headers,
     is_forbidden_path,
     validate_admin_token,
 )
-from backend.config import DB_PATH
+from backend.database import close_connection_pool, verify_database_schema
 
 
 mimetypes.add_type("image/webp", ".webp")
@@ -96,7 +96,7 @@ def _read_static(path: str, mtime: float, size: int) -> bytes:
 API_CACHE_TTL = 30.0
 _API_CACHE: Dict[str, Tuple[float, float, int, bytes, bytes]] = {}
 _API_CACHE_LOCK = threading.Lock()
-_VERSION_FILE = os.path.join(os.path.dirname(os.path.abspath(DB_PATH)), ".api-cache-version")
+_VERSION_FILE = API_CACHE_VERSION_FILE
 
 
 def _data_version() -> float:
@@ -714,13 +714,11 @@ def _worker_count() -> int:
 
 
 def _prepare_database() -> None:
-    """Tareas de base de datos que antes se repetían en cada visita."""
-    from backend.routes.reviews import ensure_reviews_table
-    try:
-        ensure_reviews_table()
-        ensure_login_attempts_table()
-    except Exception as e:  # la web sigue funcionando aunque falle
-        print(f"[!] Aviso al preparar la base de datos: {e}")
+    """Valida el esquema antes de aceptar solicitudes que contengan datos."""
+    verify_database_schema()
+    # El pool se abrió solo para verificar. Cerrarlo antes de fork evita que un
+    # socket o hilo de conexión del padre se herede a los workers de Unix.
+    close_connection_pool()
 
 
 def run_server() -> None:

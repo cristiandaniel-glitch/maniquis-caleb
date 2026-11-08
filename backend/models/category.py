@@ -11,8 +11,8 @@ def get_all_categories() -> List[Dict[str, Any]]:
     sql = """
         SELECT c.*, COUNT(p.id) as product_count
         FROM categories c
-        LEFT JOIN products p ON c.id = p.category_id AND p.is_active = 1
-        WHERE c.is_active = 1
+        LEFT JOIN products p ON c.id = p.category_id AND p.is_active = TRUE
+        WHERE c.is_active = TRUE
         GROUP BY c.id
         ORDER BY c.display_order ASC, c.name ASC
     """
@@ -21,5 +21,5 @@ def get_all_categories() -> List[Dict[str, Any]]:
 
 def get_category_by_id(category_id: int) -> Optional[Dict[str, Any]]:
     """Obtiene una categoría por su ID."""
-    sql = "SELECT * FROM categories WHERE id = ? AND is_active = 1"
+    sql = "SELECT * FROM categories WHERE id = %s AND is_active = TRUE"
     return query_one(sql, (category_id,))

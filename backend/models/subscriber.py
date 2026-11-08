@@ -3,7 +3,7 @@ Modelo para Suscripciones al Boletín / Newsletter.
 """
 
 from typing import Any, Dict, List
-from backend.database import execute_mutation, query_all, query_one
+from backend.database import query_all, query_one
 from backend.security import is_valid_email, sanitize_string
 
 
@@ -13,12 +13,18 @@ def add_subscriber(email: str) -> Dict[str, Any]:
     if not is_valid_email(email_clean):
         raise ValueError("El correo electrónico no es válido.")
 
-    existing = query_one("SELECT * FROM subscribers WHERE email = ?", (email_clean,))
-    if existing:
+    # El índice único sobre lower(email) en PostgreSQL evita carreras entre dos
+    # solicitudes simultáneas y mantiene el mensaje funcional del frontend.
+    created = query_one(
+        """INSERT INTO subscribers (email, status)
+           VALUES (%s, 'active')
+           ON CONFLICT DO NOTHING
+           RETURNING id""",
+        (email_clean,),
+    )
+    if not created:
         return {"email": email_clean, "status": "already_subscribed", "message": "Este correo ya se encuentra suscrito."}
 
-    sql = "INSERT INTO subscribers (email, status) VALUES (?, 'active')"
-    execute_mutation(sql, (email_clean,))
     return {"email": email_clean, "status": "active", "message": "¡Gracias por suscribirte al boletín de Maniquí Studio!"}
 
 

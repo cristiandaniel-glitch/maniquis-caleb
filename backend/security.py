@@ -10,6 +10,7 @@ Incluye:
 - Filtro de extensiones y archivos sensibles prohibidos
 """
 
+import datetime as dt
 import hashlib
 import hmac
 import html
@@ -94,8 +95,8 @@ def validate_admin_token(token: Optional[str]) -> bool:
     return time.time() < int(parts[0])
 
 
-# --- Anti fuerza bruta: intentos fallidos guardados en SQLite, compartidos por
-# todos los procesos (así el bloqueo es igual de estricto con varios workers) ---
+# --- Anti fuerza bruta: intentos fallidos guardados en PostgreSQL, compartidos
+# por todos los procesos e instancias del backend. ---
 
 def _login_db():
     from backend.database import get_db_connection  # import tardío: evita ciclos
@@ -103,16 +104,18 @@ def _login_db():
 
 
 def ensure_login_attempts_table() -> None:
+    """Comprueba que la migración de Supabase incluya la tabla requerida."""
     with _login_db() as conn:
-        conn.execute("CREATE TABLE IF NOT EXISTS login_attempts (ip TEXT NOT NULL, ts REAL NOT NULL)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts (ip, ts)")
+        row = conn.execute("SELECT to_regclass('public.login_attempts') AS table_name").fetchone()
+        if not row or row["table_name"] is None:
+            raise RuntimeError("Falta public.login_attempts; ejecuta schema.postgres.sql.")
 
 
 def record_failed_login(ip: str) -> None:
     """Registra un intento fallido de inicio de sesión."""
     with _login_db() as conn:
-        conn.execute("INSERT INTO login_attempts (ip, ts) VALUES (?, ?)", (ip, time.time()))
-        conn.execute("DELETE FROM login_attempts WHERE ts < ?", (time.time() - 86400,))
+        conn.execute("INSERT INTO login_attempts (ip_address) VALUES (%s::inet)", (ip,))
+        conn.execute("DELETE FROM login_attempts WHERE created_at < now() - INTERVAL '24 hours'")
 
 
 def is_ip_blocked(ip: str, max_attempts: int = 5, lock_seconds: int = 600) -> Tuple[bool, int]:
@@ -120,14 +123,17 @@ def is_ip_blocked(ip: str, max_attempts: int = 5, lock_seconds: int = 600) -> Tu
     Verifica si una IP está bloqueada por exceso de intentos fallidos.
     Retorna (True, segundos_restantes) o (False, 0).
     """
-    now = time.time()
     with _login_db() as conn:
         row = conn.execute(
-            "SELECT COUNT(*) AS n, MIN(ts) AS oldest FROM login_attempts WHERE ip = ? AND ts > ?",
-            (ip, now - lock_seconds),
+            """SELECT COUNT(*) AS n, MIN(created_at) AS oldest
+               FROM login_attempts
+               WHERE ip_address = %s::inet
+                 AND created_at > now() - (%s * INTERVAL '1 second')""",
+            (ip, lock_seconds),
         ).fetchone()
     if row and row["n"] >= max_attempts:
-        remaining = int(lock_seconds - (now - row["oldest"]))
+        elapsed = (dt.datetime.now(dt.timezone.utc) - row["oldest"]).total_seconds()
+        remaining = int(lock_seconds - elapsed)
         return True, max(remaining, 1)
     return False, 0
 
@@ -135,7 +141,7 @@ def is_ip_blocked(ip: str, max_attempts: int = 5, lock_seconds: int = 600) -> Tu
 def clear_failed_logins(ip: str) -> None:
     """Limpia los intentos fallidos tras un login exitoso."""
     with _login_db() as conn:
-        conn.execute("DELETE FROM login_attempts WHERE ip = ?", (ip,))
+        conn.execute("DELETE FROM login_attempts WHERE ip_address = %s::inet", (ip,))
 
 
 def get_security_headers() -> Dict[str, str]:

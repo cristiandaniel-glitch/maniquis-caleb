@@ -5,15 +5,37 @@ Datos oficiales conforme al Registro Único de Contribuyentes (SUNAT - Perú).
 
 import os
 
+from dotenv import load_dotenv
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# En producción las variables deben configurarse en el proveedor. Este archivo
+# permite que cada integrante use su propio .env local, que está excluido de Git.
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 # Servidor
 PORT = int(os.environ.get("PORT", 8000))
 HOST = os.environ.get("HOST", "0.0.0.0")
 DEBUG = os.environ.get("DEBUG", "False").lower() in ("true", "1", "yes")
 
-# Base de datos SQLite
-DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "database", "maniqui.db"))
+# Base de datos PostgreSQL / Supabase. La validación se hace al iniciar el
+# servidor, para que no se arranque accidentalmente contra una base local.
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+# Tolera el error común de pegar la asignación completa dentro del valor, por
+# ejemplo DATABASE_URL=DATABASE_URL=postgresql://...; el prefijo se elimina en
+# memoria y nunca se registra ni se muestra la credencial.
+if DATABASE_URL.startswith("DATABASE_URL="):
+    DATABASE_URL = DATABASE_URL[len("DATABASE_URL="):].strip()
+DATABASE_SSLMODE = os.environ.get("DATABASE_SSLMODE", "require").strip()
+DATABASE_POOL_MIN_SIZE = int(os.environ.get("DATABASE_POOL_MIN_SIZE", "1"))
+DATABASE_POOL_MAX_SIZE = int(os.environ.get("DATABASE_POOL_MAX_SIZE", "5"))
+DATABASE_POOL_TIMEOUT = float(os.environ.get("DATABASE_POOL_TIMEOUT", "10"))
+
+# Marca local para invalidar la caché de respuestas públicas de cada proceso.
+# No contiene datos ni credenciales de la base de datos.
+API_CACHE_VERSION_FILE = os.environ.get(
+    "API_CACHE_VERSION_FILE", os.path.join(BASE_DIR, "database", ".api-cache-version")
+)
 
 # Directorio de Frontend y estáticos
 STATIC_DIR = os.environ.get("STATIC_DIR", os.path.join(BASE_DIR, "frontend"))

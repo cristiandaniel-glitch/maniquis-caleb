@@ -17,7 +17,7 @@ El cliente recibe un sistema web **Full-Stack hecho a medida**, 100% libre de co
 5. **Libro de Reclamaciones Virtual Oficial Indecopi:** Cumple con la Ley N° 29571 y D.S. N° 011-2011-PCM, emitiendo constancias digitales imprimibles en PDF con código secuencial (`REC-2026-XXXX`) y plazo legal de 15 días hábiles.
 6. **Centro de Políticas Legales Peruanas:** Términos de Contratación (Nuevo RUS), Política de Privacidad y Derechos ARCO (Ley N° 29733), Política de Envíos a Provincias y Banner de Cookies de 2 Capas.
 7. **Panel de Administración Privado:** Para gestionar el inventario de maniquíes, ver cotizaciones recibidas y gestionar reclamos desde el navegador.
-8. **Seguridad y Cero Vulnerabilidades:** Base de datos SQLite protegida contra Inyección SQL, scripts maliciosos (XSS) y contraseñas cifradas con algoritmo criptográfico PBKDF2.
+8. **Seguridad y Cero Vulnerabilidades:** Base de datos PostgreSQL en Supabase, consultas parametrizadas, conexión TLS, scripts maliciosos (XSS) y contraseñas cifradas con algoritmo criptográfico PBKDF2.
 
 ---
 
@@ -26,8 +26,8 @@ El cliente recibe un sistema web **Full-Stack hecho a medida**, 100% libre de co
 | Concepto | Detalle |
 |---|---|
 | **Acceso al Panel** | Abrir **`/admin`** o clic en **Administración** al final del pie de la página |
-| **Contraseña Maestra Inicial** | `AdminManiqui2026!` *(Recomendable cambiar al subir a producción)* |
-| **Ubicación de Base de Datos** | `database/maniqui.db` |
+| **Contraseña Maestra** | La definida mediante `ADMIN_SALT` y `ADMIN_PASSWORD_HASH` en el `.env` privado |
+| **Ubicación de Base de Datos** | Proyecto PostgreSQL de Supabase configurado con `DATABASE_URL` |
 
 ---
 
