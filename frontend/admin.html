@@ -59,6 +59,7 @@
 
         <div class="admin-tabs" role="tablist" aria-label="Secciones del panel">
             <button role="tab" type="button" id="tab-inv" aria-controls="pane-inv" aria-selected="true">Inventario</button>
+            <button role="tab" type="button" id="tab-cat" aria-controls="pane-cat" aria-selected="false" tabindex="-1">Categorías</button>
             <button role="tab" type="button" id="tab-new" aria-controls="pane-new" aria-selected="false" tabindex="-1">Añadir maniquí</button>
             <button role="tab" type="button" id="tab-msg" aria-controls="pane-msg" aria-selected="false" tabindex="-1">Mensajes</button>
             <button role="tab" type="button" id="tab-clm" aria-controls="pane-clm" aria-selected="false" tabindex="-1">Reclamaciones</button>
@@ -67,9 +68,27 @@
         <div class="admin-pane" role="tabpanel" id="pane-inv" aria-labelledby="tab-inv">
             <div class="admin-table-wrap">
                 <table class="admin-table">
-                    <thead><tr><th>Producto</th><th>Categoría</th><th>Código</th><th>Stock</th><th><span class="sr-only">Acción</span></th></tr></thead>
+                    <thead><tr><th>Producto</th><th>Categoría</th><th>Código</th><th>Stock</th><th><span class="sr-only">Acciones</span></th></tr></thead>
                     <tbody id="adm-products"></tbody>
                 </table>
+            </div>
+        </div>
+
+        <div class="admin-pane" role="tabpanel" id="pane-cat" aria-labelledby="tab-cat" hidden>
+            <div class="admin-category-layout">
+                <section class="admin-card admin-category-card" aria-labelledby="adm-category-list-title">
+                    <h2 class="admin-section-title" id="adm-category-list-title">Categorías actuales</h2>
+                    <ul class="admin-category-list" id="adm-category-list">
+                        <li class="admin-empty">Cargando categorías…</li>
+                    </ul>
+                </section>
+                <form class="form admin-card admin-category-form" id="adm-category-form" novalidate>
+                    <h2 class="admin-section-title">Añadir categoría</h2>
+                    <label class="field"><span>Nombre</span><input name="name" required maxlength="80" placeholder="Ej. Maniquíes de exhibición"></label>
+                    <label class="field"><span>Descripción <em>(opcional)</em></span><textarea name="description" maxlength="300" placeholder="Describe esta categoría."></textarea></label>
+                    <p class="form-error" id="adm-category-error" role="alert" hidden></p>
+                    <button class="btn btn-dark" type="submit">Guardar categoría</button>
+                </form>
             </div>
         </div>
 
@@ -110,6 +129,19 @@
         </div>
     </section>
 </main>
+
+<dialog class="admin-dialog" id="adm-edit-dialog" aria-labelledby="adm-edit-title">
+    <form class="form admin-dialog-form" id="adm-edit-form" novalidate>
+        <h2 class="admin-title" id="adm-edit-title">Editar producto</h2>
+        <label class="field"><span>Nombre</span><input name="name" id="adm-edit-name" required maxlength="120"></label>
+        <label class="field"><span>Categoría</span><select name="category_id" id="adm-edit-category" required></select></label>
+        <p class="form-error" id="adm-edit-error" role="alert" hidden></p>
+        <div class="admin-dialog-actions">
+            <button class="btn btn-outline" id="adm-edit-cancel" type="button">Cancelar</button>
+            <button class="btn btn-dark" type="submit">Guardar cambios</button>
+        </div>
+    </form>
+</dialog>
 
 <div class="toast" id="adm-toast" role="status" aria-live="polite" hidden></div>
 

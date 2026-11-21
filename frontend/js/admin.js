@@ -140,7 +140,7 @@
 
     // ------------------------------------------------------------ pestañas
     const tabs = [...document.querySelectorAll(".admin-tabs [role=tab]")];
-    const loaders = { "pane-inv": () => loadProducts(), "pane-msg": () => loadMessages(), "pane-clm": () => loadClaims() };
+    const loaders = { "pane-inv": () => loadProducts(), "pane-cat": () => loadAdminCategories(), "pane-msg": () => loadMessages(), "pane-clm": () => loadClaims() };
     function selectTab(tab) {
         tabs.forEach((t) => {
             const on = t === tab;
@@ -172,17 +172,104 @@
         }));
     }
 
-    function loadCategories() {
-        const select = $("#adm-categories");
-        if (select.options.length) return;
-        guard(api("/api/categories").then(({ data }) => {
-            select.replaceChildren(...data.map((c) => el("option", { value: String(c.id), text: c.name })));
-        }));
+    let categoriesRequest;
+    let categoriesData;
+    function loadCategories(force = false) {
+        const selects = [$("#adm-categories"), $("#adm-edit-category")].filter(Boolean);
+        if (force) {
+            categoriesData = null;
+            categoriesRequest = null;
+        }
+        if (categoriesData) {
+            selects.forEach((select) => {
+                select.replaceChildren(...categoriesData.map((c) => el("option", { value: String(c.id), text: c.name })));
+            });
+            return Promise.resolve(categoriesData);
+        }
+        if (!categoriesRequest) {
+            categoriesRequest = api("/api/categories").then(({ data }) => {
+                categoriesData = data;
+                selects.forEach((select) => {
+                    select.replaceChildren(...data.map((c) => el("option", { value: String(c.id), text: c.name })));
+                });
+                return data;
+            }).catch((e) => {
+                categoriesRequest = null;
+                if (e instanceof AuthError) showLogin(e.message);
+                else toast(e.message, true);
+                return null;
+            });
+        }
+        return categoriesRequest;
     }
 
     function emptyRow(tbody, text) {
         tbody.replaceChildren(el("tr", {}, el("td", { colspan: "5", class: "admin-empty", text })));
     }
+
+    function loadAdminCategories() {
+        const list = $("#adm-category-list");
+        list.replaceChildren(el("li", { class: "admin-empty", text: "Cargando categorías…" }));
+        return loadCategories().then((categories) => {
+            if (!categories) {
+                list.replaceChildren(el("li", { class: "admin-empty", text: "No se pudieron cargar las categorías." }));
+                return;
+            }
+            if (!categories.length) {
+                list.replaceChildren(el("li", { class: "admin-empty", text: "Todavía no hay categorías." }));
+                return;
+            }
+            list.replaceChildren(...categories.map((category) => {
+                const count = Number(category.product_count) || 0;
+                return el("li", { class: "admin-category-item" }, [
+                    el("strong", { text: category.name }),
+                    el("span", { class: "muted", text: `${count} ${count === 1 ? "producto" : "productos"}` }),
+                ]);
+            }));
+        });
+    }
+
+    const categoryForm = $("#adm-category-form");
+    const categoryError = $("#adm-category-error");
+    categoryForm.addEventListener("input", () => {
+        categoryError.hidden = true;
+        categoryError.textContent = "";
+    });
+
+    categoryForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const form = e.currentTarget;
+        const name = form.elements.name.value.trim();
+        if (!name) {
+            categoryError.textContent = "Escribe el nombre de la categoría.";
+            categoryError.hidden = false;
+            form.elements.name.focus();
+            return;
+        }
+
+        const submit = form.querySelector("button[type=submit]");
+        submit.disabled = true;
+        categoryError.hidden = true;
+        try {
+            await api("/api/categories", {
+                method: "POST",
+                body: JSON.stringify({ name, description: form.elements.description.value.trim() }),
+            });
+            form.reset();
+            toast("Categoría añadida.");
+            await loadCategories(true);
+            loadAdminCategories();
+            loadStats();
+        } catch (error) {
+            if (error instanceof AuthError) showLogin(error.message);
+            else {
+                categoryError.textContent = error.message;
+                categoryError.hidden = false;
+            }
+        } finally {
+            submit.disabled = false;
+        }
+    });
 
     function loadProducts() {
         const tbody = $("#adm-products");
@@ -190,6 +277,8 @@
         return guard(api("/api/products").then(({ data }) => {
             if (!data.length) return emptyRow(tbody, "No hay productos en el catálogo.");
             tbody.replaceChildren(...data.map((p) => {
+                const edit = el("button", { class: "btn btn-dark admin-edit", type: "button", text: "Editar", "aria-label": `Editar ${p.name}` });
+                edit.addEventListener("click", () => editProduct(p));
                 const del = el("button", { class: "btn btn-outline admin-del", type: "button", text: "Eliminar", "aria-label": `Eliminar ${p.name}` });
                 del.addEventListener("click", () => removeProduct(p, del));
                 return el("tr", {}, [
@@ -200,11 +289,68 @@
                     el("td", { "data-label": "Categoría", text: p.category_name || "—" }),
                     el("td", { "data-label": "Código", text: p.sku || "—" }),
                     el("td", { "data-label": "Stock", text: p.stock > 0 ? `${p.stock} un.` : "Consultar" }),
-                    el("td", {}, del),
+                    el("td", {}, el("div", { class: "admin-actions" }, [edit, del])),
                 ]);
             }));
         }));
     }
+
+    const editDialog = $("#adm-edit-dialog");
+    const editForm = $("#adm-edit-form");
+    const editName = $("#adm-edit-name");
+    const editCategory = $("#adm-edit-category");
+    const editError = $("#adm-edit-error");
+    $("#adm-edit-cancel").addEventListener("click", () => editDialog.close());
+
+    async function editProduct(product) {
+        await loadCategories();
+        if (!editCategory.options.length) return;
+        editForm.dataset.productId = String(product.id);
+        editName.value = plain(product.name);
+        editCategory.value = String(product.category_id);
+        editError.hidden = true;
+        editError.textContent = "";
+        editDialog.showModal();
+        editName.focus();
+        editName.select();
+    }
+
+    editForm.addEventListener("input", () => {
+        editError.hidden = true;
+        editError.textContent = "";
+    });
+
+    editForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const name = editName.value.trim();
+        if (!name) {
+            editError.textContent = "Escribe el nombre del producto.";
+            editError.hidden = false;
+            editName.focus();
+            return;
+        }
+
+        const submit = editForm.querySelector("button[type=submit]");
+        submit.disabled = true;
+        editError.hidden = true;
+        try {
+            await api(`/api/products/${editForm.dataset.productId}`, {
+                method: "PUT",
+                body: JSON.stringify({ name, category_id: Number(editCategory.value) }),
+            });
+            editDialog.close();
+            toast("Producto actualizado.");
+            loadProducts();
+        } catch (error) {
+            if (error instanceof AuthError) showLogin(error.message);
+            else {
+                editError.textContent = error.message;
+                editError.hidden = false;
+            }
+        } finally {
+            submit.disabled = false;
+        }
+    });
 
     async function removeProduct(p, btn) {
         if (!window.confirm(`¿Quitar "${plain(p.name)}" del catálogo? Dejará de verse en la página.`)) return;

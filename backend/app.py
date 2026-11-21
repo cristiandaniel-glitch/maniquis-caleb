@@ -27,7 +27,7 @@ from backend.config import (
     STATIC_DIR,
 )
 from backend.routes.auth import handle_admin_login, handle_verify_admin_session
-from backend.routes.categories import handle_get_categories, handle_get_category_detail
+from backend.routes.categories import handle_create_category, handle_get_categories, handle_get_category_detail
 from backend.routes.claims import handle_create_claim, handle_get_claim_detail
 from backend.routes.legal import handle_get_legal_info
 from backend.routes.messages import handle_get_messages, handle_send_message
@@ -390,7 +390,7 @@ class SecureRequestHandler(http.server.BaseHTTPRequestHandler):
         try:
             self._do_post(client_ip)
         finally:
-            if urllib.parse.urlparse(self.path).path.rstrip("/") in ("/api/reviews", "/api/products"):
+            if urllib.parse.urlparse(self.path).path.rstrip("/") in ("/api/reviews", "/api/products", "/api/categories"):
                 bump_data_version()
 
     def _do_post(self, client_ip: str) -> None:
@@ -461,6 +461,17 @@ class SecureRequestHandler(http.server.BaseHTTPRequestHandler):
                 self.send_json_response({"success": False, "error": "Acceso denegado. Se requiere autenticación de administrador para crear productos."}, 401)
                 return
             res = handle_create_product(body_data)
+            if isinstance(res, tuple):
+                self.send_json_response(res[0], res[1])
+            else:
+                self.send_json_response(res)
+            return
+
+        if path == "/api/categories":
+            if not self.is_authenticated_admin():
+                self.send_json_response({"success": False, "error": "Acceso denegado. Se requiere autenticación de administrador para crear categorías."}, 401)
+                return
+            res = handle_create_category(body_data)
             if isinstance(res, tuple):
                 self.send_json_response(res[0], res[1])
             else:
