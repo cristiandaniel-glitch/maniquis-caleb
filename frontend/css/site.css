@@ -1127,13 +1127,19 @@ main { overflow-x: clip; }
    La cuadrícula ocupa el espacio que sobra y siempre tiene 2 filas.
    ========================================================================== */
 .catalog-page {
-    height: 100vh; height: 100svh; min-height: 620px;
-    padding: calc(var(--header-h) + 20px) 0 20px;
+    height: 100vh; height: 100svh; min-height: 600px;
+    padding: calc(var(--header-h) + 18px) 0 12px;
     display: flex;
+    /* Al bajar con la rueda del mouse, la sección "se acomoda" sola para
+       verse completa (de la cabecera hasta las flechas de página). El margen
+       negativo anula el scroll-padding general, que aquí ya va dentro del padding. */
+    scroll-snap-align: start;
+    scroll-margin-top: calc(-1 * (var(--header-h) + 16px));
 }
-.catalog-page-inner { display: flex; flex-direction: column; gap: 14px; min-height: 0; flex: 1; }
+html:has(.catalog-page) { scroll-snap-type: y proximity; }
+.catalog-page-inner { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1; }
 .catalog-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
-.catalog-page .catalog-title { margin: 0; font-size: clamp(2rem, 3.4vw, 3rem); }
+.catalog-page .catalog-title { margin: 0; font-size: clamp(1.9rem, 3vw, 2.7rem); line-height: 1.1; }
 .catalog-page .product-grid {
     flex: 1; min-height: 0; margin: 4px 0 0;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -1149,7 +1155,7 @@ main { overflow-x: clip; }
 .catalog-page .price-tag { font-size: 1rem; top: 10px; right: 10px; }
 .catalog-page .grid-empty { grid-row: 1 / -1; }
 .pager { display: flex; align-items: center; justify-content: center; gap: 20px; color: var(--grafito); }
-.pager-btn { width: 52px; height: 52px; background: transparent; }
+.pager-btn { width: 46px; height: 46px; background: transparent; }
 .pager-btn:disabled { opacity: .3; cursor: default; }
 .pager-btn:not(:disabled):hover { background: var(--grafito); color: var(--fibra); }
 .pager-info { min-width: 16ch; text-align: center; font-weight: 600; color: var(--piedra); font-variant-numeric: tabular-nums; }
