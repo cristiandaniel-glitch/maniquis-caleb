@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Administración | Maniquis y Exhibidores Caleb</title>
+    <title>Administración | Maniquíes y Exhibidores Caleb</title>
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#232326">
 
@@ -20,8 +20,8 @@
 <!-- Panel del dueño: no aparece en el menú del sitio; se entra por /admin
      o por el enlace "Administración" del pie. Lógica en /js/admin.js -->
 <header class="admin-bar">
-    <a class="brand" href="/" aria-label="Maniquis y Exhibidores Caleb, ir al sitio">
-        <span class="brand-name">CALEB</span>
+    <a class="brand" href="/" aria-label="Maniquíes y Exhibidores Caleb, ir al sitio">
+        <span class="brand-logo"><img src="/assets/logo/logo-caleb.webp" alt="" width="480" height="333" decoding="async" fetchpriority="high"></span>
         <span class="brand-sub">Administración</span>
     </a>
     <div class="admin-bar-actions">
@@ -53,7 +53,7 @@
         <ul class="admin-stats" aria-label="Resumen">
             <li><span>Productos activos</span><strong id="st-products">—</strong></li>
             <li><span>Categorías</span><strong id="st-categories">—</strong></li>
-            <li><span>Mensajes</span><strong id="st-messages">—</strong></li>
+            <li><span>Mensajes sin leer</span><strong id="st-messages">—</strong></li>
             <li><span>Reclamos pendientes</span><strong id="st-claims">—</strong></li>
         </ul>
 
@@ -63,12 +63,13 @@
             <button role="tab" type="button" id="tab-new" aria-controls="pane-new" aria-selected="false" tabindex="-1">Añadir maniquí</button>
             <button role="tab" type="button" id="tab-msg" aria-controls="pane-msg" aria-selected="false" tabindex="-1">Mensajes</button>
             <button role="tab" type="button" id="tab-clm" aria-controls="pane-clm" aria-selected="false" tabindex="-1">Reclamaciones</button>
+            <button role="tab" type="button" id="tab-rev" aria-controls="pane-rev" aria-selected="false" tabindex="-1">Reseñas</button>
         </div>
 
         <div class="admin-pane" role="tabpanel" id="pane-inv" aria-labelledby="tab-inv">
             <div class="admin-table-wrap">
                 <table class="admin-table">
-                    <thead><tr><th>Producto</th><th>Categoría</th><th>Código</th><th>Stock</th><th><span class="sr-only">Acciones</span></th></tr></thead>
+                    <thead><tr><th>Producto</th><th>Categoría</th><th>Código</th><th>Stock</th><th>Estado</th><th><span class="sr-only">Acciones</span></th></tr></thead>
                     <tbody id="adm-products"></tbody>
                 </table>
             </div>
@@ -125,7 +126,13 @@
         </div>
 
         <div class="admin-pane" role="tabpanel" id="pane-clm" aria-labelledby="tab-clm" hidden>
+            <p class="admin-note">Por ley (Indecopi) cada reclamo debe responderse en un máximo de 15 días hábiles. Escribe aquí la respuesta que diste al cliente y cambia el estado.</p>
             <ul class="admin-list" id="adm-claims"></ul>
+        </div>
+
+        <div class="admin-pane" role="tabpanel" id="pane-rev" aria-labelledby="tab-rev" hidden>
+            <p class="admin-note">Las reseñas se publican solas. Si alguna es falsa, ofensiva o de spam, ocúltala: deja de verse en la página, pero no se borra.</p>
+            <ul class="admin-list" id="adm-reviews"></ul>
         </div>
     </section>
 </main>
@@ -135,6 +142,7 @@
         <h2 class="admin-title" id="adm-edit-title">Editar producto</h2>
         <label class="field"><span>Nombre</span><input name="name" id="adm-edit-name" required maxlength="120"></label>
         <label class="field"><span>Categoría</span><select name="category_id" id="adm-edit-category" required></select></label>
+        <label class="field"><span>Descripción</span><textarea name="description" id="adm-edit-description" required minlength="5" maxlength="1000" rows="5" placeholder="Para qué sirve, cómo es y en qué vitrinas luce."></textarea></label>
         <p class="form-error" id="adm-edit-error" role="alert" hidden></p>
         <div class="admin-dialog-actions">
             <button class="btn btn-outline" id="adm-edit-cancel" type="button">Cancelar</button>

@@ -20,6 +20,7 @@ from backend.config import (
     DATABASE_POOL_MAX_SIZE,
     DATABASE_POOL_MIN_SIZE,
     DATABASE_POOL_TIMEOUT,
+    DATABASE_PREPARE_THRESHOLD,
     DATABASE_SSLMODE,
     DATABASE_URL,
 )
@@ -63,6 +64,7 @@ def _get_pool() -> ConnectionPool:
                     "row_factory": dict_row,
                     "connect_timeout": int(DATABASE_POOL_TIMEOUT),
                     "sslmode": DATABASE_SSLMODE,
+                    "prepare_threshold": DATABASE_PREPARE_THRESHOLD,
                 },
                 min_size=min_size,
                 max_size=max_size,
@@ -162,3 +164,11 @@ def verify_database_schema() -> None:
             "Faltan tablas de PostgreSQL: " + ", ".join(missing) +
             ". Ejecuta database/schema.postgres.sql en el SQL Editor de Supabase."
         )
+
+
+def database_ok() -> bool:
+    """Para /api/health: True si la base responde (sin exponer detalles)."""
+    try:
+        return query_one("SELECT 1 AS ok") is not None
+    except Exception:
+        return False

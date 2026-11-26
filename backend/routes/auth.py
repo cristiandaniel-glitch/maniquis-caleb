@@ -1,59 +1,36 @@
-"""
-Controlador de autenticación y gestión de sesiones administrativas.
-"""
+"""Ingreso al panel de administración."""
 
-from typing import Any, Dict, Optional, Tuple, Union
-from backend.security import (
-    clear_failed_logins,
-    create_admin_session,
-    is_ip_blocked,
-    record_failed_login,
-    validate_admin_token,
-    verify_password,
-)
+from backend.core import auth
+from backend.web.router import Request, fail, ok, router
 
 
-def handle_admin_login(payload: Dict[str, Any], client_ip: str) -> Union[Dict[str, Any], Tuple[Dict[str, Any], int]]:
-    """Maneja el inicio de sesión administrativo con protección anti-fuerza bruta."""
-    blocked, wait_seconds = is_ip_blocked(client_ip)
+@router.post("/api/admin/login", limit="login")
+def login(req: Request):
+    if not auth.admin_login_configured():
+        return fail("El panel aún no tiene contraseña configurada en el servidor.", 503)
+
+    blocked, wait = auth.is_ip_blocked(req.client_ip)
     if blocked:
-        return {
-            "success": False,
-            "error": f"Demasiados intentos fallidos. Su dirección IP ha sido bloqueada temporalmente por seguridad. Intente en {wait_seconds} segundos."
-        }, 429
+        return fail(f"Demasiados intentos fallidos. Por seguridad, intente de nuevo en {wait} segundos.", 429)
 
-    password = payload.get("password", "")
-    if not password:
-        return {"success": False, "error": "Debe ingresar la contraseña de administrador."}, 400
+    password = req.body.get("password")
+    if not isinstance(password, str) or not password:
+        return fail("Debe ingresar la contraseña de administrador.")
 
-    if not verify_password(password):
-        record_failed_login(client_ip)
-        blocked_now, wait = is_ip_blocked(client_ip)
-        if blocked_now:
-            return {
-                "success": False,
-                "error": f"Contraseña incorrecta. Has alcanzado el límite de intentos. Bloqueo temporal por {wait} segundos."
-            }, 429
-        return {"success": False, "error": "Credenciales inválidas. Acceso denegado."}, 401
+    if not auth.verify_password(password):
+        auth.record_failed_login(req.client_ip)
+        blocked, wait = auth.is_ip_blocked(req.client_ip)
+        if blocked:
+            return fail(f"Contraseña incorrecta. Alcanzaste el límite de intentos: espera {wait} segundos.", 429)
+        return fail("Credenciales inválidas. Acceso denegado.", 401)
 
-    # Login exitoso: limpiar fallos y generar token seguro
-    clear_failed_logins(client_ip)
-    token = create_admin_session()
-
-    return {
-        "success": True,
-        "message": "Autenticación exitosa.",
-        "data": {
-            "token": token,
-            "role": "admin",
-            "expires_in": 14400 # 4 horas en segundos
-        }
-    }
+    auth.clear_failed_logins(req.client_ip)
+    return ok({"token": auth.create_admin_session(), "role": "admin", "expires_in": 14400},
+              message="Autenticación exitosa.")
 
 
-def handle_verify_admin_session(token: Optional[str]) -> Union[Dict[str, Any], Tuple[Dict[str, Any], int]]:
-    """Verifica si la sesión actual sigue activa y válida."""
-    if not validate_admin_token(token):
-        return {"success": False, "error": "Sesión inválida o expirada. Por favor inicie sesión."}, 401
-
-    return {"success": True, "message": "Sesión válida.", "authenticated": True}
+@router.get("/api/admin/verify")
+def verify(req: Request):
+    if not req.is_admin:
+        return fail("Sesión inválida o expirada. Por favor inicie sesión.", 401)
+    return ok(message="Sesión válida.", authenticated=True)

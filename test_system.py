@@ -4,9 +4,12 @@ Suite de pruebas de integración y validación del sistema Maniquí Studio.
 """
 
 import json
+import os
 import urllib.request
 
-BASE = "http://localhost:8000"
+BASE = os.environ.get("TEST_BASE_URL", "http://localhost:8000")
+# Contraseña real del panel, solo para las pruebas: ADMIN_TEST_PASSWORD=... python3 test_system.py
+ADMIN_PASSWORD = os.environ.get("ADMIN_TEST_PASSWORD", "")
 
 
 def get(path, token=None):
@@ -111,7 +114,7 @@ def run_tests():
     print(f"  [✔] GET /api/products -> {len(prods_data)} productos activos en el catálogo.")
 
     # Login Admin
-    status, auth_res = post("/api/admin/login", {"password": "AdminManiqui2026!"})
+    status, auth_res = post("/api/admin/login", {"password": ADMIN_PASSWORD})
     token = auth_res["data"]["token"]
     print(f"  [✔] POST /api/admin/login -> Sesión iniciada con éxito.")
 

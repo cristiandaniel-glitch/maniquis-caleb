@@ -1,3 +1,3 @@
 """
-Modelos de datos y lógica de negocio para Maniquí Studio.
+Acceso a datos (PostgreSQL). Cada archivo valida y guarda un tipo de registro.
 """

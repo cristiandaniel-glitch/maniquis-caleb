@@ -1,30 +1,20 @@
-"""
-Rutas para estadísticas y métricas del panel de administración.
-"""
+"""Resumen numérico del panel de administración (una sola consulta)."""
 
-from typing import Any, Dict
 from backend.database import query_one
+from backend.web.router import Request, ok, router
 
 
-def handle_get_stats() -> Dict[str, Any]:
-    """Maneja GET /api/stats."""
-    p_count = query_one("SELECT COUNT(*) as count FROM products WHERE is_active = TRUE")["count"]
-    c_count = query_one("SELECT COUNT(*) as count FROM categories WHERE is_active = TRUE")["count"]
-    m_count = query_one("SELECT COUNT(*) as count FROM contact_messages")["count"]
-    cl_count = query_one("SELECT COUNT(*) as count FROM claims_book")["count"]
-    s_count = query_one("SELECT COUNT(*) as count FROM subscribers WHERE status = 'active'")["count"]
-    unread_msg = query_one("SELECT COUNT(*) as count FROM contact_messages WHERE status = 'unread'")["count"]
-    pending_claims = query_one("SELECT COUNT(*) as count FROM claims_book WHERE status = 'Pendiente'")["count"]
-
-    return {
-        "success": True,
-        "data": {
-            "products_total": p_count,
-            "categories_total": c_count,
-            "messages_total": m_count,
-            "messages_unread": unread_msg,
-            "claims_total": cl_count,
-            "claims_pending": pending_claims,
-            "subscribers_total": s_count
-        }
-    }
+@router.get("/api/stats", admin=True)
+def summary(req: Request):
+    row = query_one(
+        """SELECT
+             (SELECT COUNT(*) FROM products WHERE is_active)                      AS products_total,
+             (SELECT COUNT(*) FROM products WHERE NOT is_active)                  AS products_inactive,
+             (SELECT COUNT(*) FROM categories WHERE is_active)                    AS categories_total,
+             (SELECT COUNT(*) FROM contact_messages)                              AS messages_total,
+             (SELECT COUNT(*) FROM contact_messages WHERE status = 'unread')      AS messages_unread,
+             (SELECT COUNT(*) FROM claims_book)                                   AS claims_total,
+             (SELECT COUNT(*) FROM claims_book WHERE status = 'Pendiente')        AS claims_pending,
+             (SELECT COUNT(*) FROM subscribers WHERE status = 'active')           AS subscribers_total"""
+    )
+    return ok(row)

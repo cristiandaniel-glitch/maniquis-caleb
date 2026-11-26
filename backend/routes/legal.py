@@ -3,7 +3,6 @@ Rutas para información legal, términos y condiciones y política de privacidad
 Adaptado a la legislación peruana (Indecopi, Ley 29733, SUNAT).
 """
 
-from typing import Any, Dict
 from backend.config import (
     CLAIM_RESPONSE_DAYS,
     COMPANY_ACTIVITY,
@@ -14,6 +13,8 @@ from backend.config import (
     COMPANY_HOURS_SATURDAYS,
     COMPANY_HOURS_SUNDAYS,
     COMPANY_HOURS_WEEKDAYS,
+    COMPANY_LAT,
+    COMPANY_LNG,
     COMPANY_LEGAL_EMAIL,
     COMPANY_LEGAL_NAME,
     COMPANY_PHONE_ADMIN,
@@ -26,10 +27,11 @@ from backend.config import (
     TAX_DISCLAIMER,
     WARRANTY_MONTHS,
 )
+from backend.web.router import Request, router
 
 
-def handle_get_legal_info() -> Dict[str, Any]:
-    """Maneja GET /api/legal."""
+@router.get("/api/legal", cache=True)
+def legal_info(req: Request):
     return {
         "success": True,
         "data": {
@@ -42,6 +44,7 @@ def handle_get_legal_info() -> Dict[str, Any]:
                 "activity": COMPANY_ACTIVITY,
                 "address": COMPANY_ADDRESS,
                 "stand": COMPANY_STAND,
+                "location": {"lat": COMPANY_LAT, "lng": COMPANY_LNG},
                 "phone_catalog": COMPANY_PHONE_CATALOG,
                 "phone_admin": COMPANY_PHONE_ADMIN,
                 "email_contact": COMPANY_EMAIL,
@@ -61,4 +64,4 @@ def handle_get_legal_info() -> Dict[str, Any]:
                 "arco_rights": f"Puede ejercer sus derechos de Acceso, Rectificación, Cancelación y Oposición (ARCO) dirigiendo una solicitud formal a {COMPANY_LEGAL_EMAIL}."
             }
         }
-    }
+    }, 200
