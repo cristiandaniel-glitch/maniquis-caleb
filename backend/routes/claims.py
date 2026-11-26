@@ -3,7 +3,6 @@ Rutas para el Libro de Reclamaciones Virtual.
 Cumple estrictamente con la normativa peruana de Indecopi (D.S. N° 011-2011-PCM).
 """
 
-from typing import Any, Dict, Tuple, Union
 from backend.config import (
     CLAIM_RESPONSE_DAYS,
     COMPANY_ADDRESS,
@@ -17,50 +16,46 @@ from backend.config import (
     COMPANY_TAX_ID,
 )
 from backend.models.claim import create_claim, get_all_claims, get_claim_by_code
+from backend.web.router import Request, fail, ok, router
 
 
-def handle_create_claim(payload: Dict[str, Any]) -> Union[Dict[str, Any], Tuple[Dict[str, Any], int]]:
-    """Maneja POST /api/claims."""
-    try:
-        result = create_claim(payload)
-        # Añadir datos de la empresa para la constancia formal
-        result["company_info"] = {
-            "legal_name": COMPANY_LEGAL_NAME,
-            "commercial_name": COMPANY_COMMERCIAL_NAME,
-            "tax_id": COMPANY_TAX_ID,
-            "dni": COMPANY_DNI,
-            "address": COMPANY_ADDRESS,
-            "stand": COMPANY_STAND,
-            "email": COMPANY_LEGAL_EMAIL,
-            "phone_catalog": COMPANY_PHONE_CATALOG,
-            "phone_admin": COMPANY_PHONE_ADMIN,
-            "legal_response_time": f"Máximo {CLAIM_RESPONSE_DAYS} días hábiles según normativa del Indecopi (Ley N° 29571)."
-        }
-        return {
-            "success": True,
-            "data": result
-        }, 201
-    except ValueError as ve:
-        return {"success": False, "error": str(ve)}, 400
-    except Exception as e:
-        return {"success": False, "error": "No se pudo procesar la hoja de reclamación. Intente nuevamente."}, 500
+COMPANY_INFO = {
+    "legal_name": COMPANY_LEGAL_NAME,
+    "commercial_name": COMPANY_COMMERCIAL_NAME,
+    "tax_id": COMPANY_TAX_ID,
+    "dni": COMPANY_DNI,
+    "address": COMPANY_ADDRESS,
+    "stand": COMPANY_STAND,
+    "email": COMPANY_LEGAL_EMAIL,
+    "phone_catalog": COMPANY_PHONE_CATALOG,
+    "phone_admin": COMPANY_PHONE_ADMIN,
+    "legal_response_time": f"Máximo {CLAIM_RESPONSE_DAYS} días hábiles según normativa del Indecopi (Ley N° 29571).",
+}
 
-
-# Datos que se muestran a cualquiera que consulte un código (sin datos
-# personales: los códigos son correlativos y se pueden adivinar — Ley 29733).
+# Datos que ve cualquiera que consulte un código (sin datos personales: los
+# códigos son correlativos y se pueden adivinar — Ley 29733).
 PUBLIC_CLAIM_FIELDS = ("claim_code", "claim_type", "status", "created_at")
 
 
-def handle_get_claim_detail(claim_code: str, is_admin: bool = False) -> Union[Dict[str, Any], Tuple[Dict[str, Any], int]]:
-    """Maneja GET /api/claims/<code_or_all>. Sin sesión de administrador solo devuelve el estado."""
-    if claim_code == "all":
-        claims = get_all_claims()
-        return {"success": True, "count": len(claims), "data": claims}
+@router.post("/api/claims", honeypot=True)
+def create(req: Request):
+    result = create_claim(req.body)
+    result["company_info"] = COMPANY_INFO
+    return ok(result, 201)
 
-    claim = get_claim_by_code(claim_code)
+
+@router.get("/api/claims/all", admin=True)
+def list_all(req: Request):
+    claims = get_all_claims()
+    return ok(claims, count=len(claims))
+
+
+@router.get("/api/claims/<code>")
+def detail(req: Request):
+    """Consulta pública del estado. Con sesión de administrador devuelve la hoja completa."""
+    claim = get_claim_by_code(req.params["code"])
     if not claim:
-        return {"success": False, "error": f"No se encontró ninguna reclamación con el código '{claim_code}'."}, 404
-
-    if not is_admin:
-        claim = {k: claim.get(k) for k in PUBLIC_CLAIM_FIELDS}
-    return {"success": True, "data": claim}
+        return fail("No se encontró ninguna reclamación con ese código.", 404)
+    if not req.is_admin:
+        claim = {key: claim.get(key) for key in PUBLIC_CLAIM_FIELDS}
+    return ok(claim)

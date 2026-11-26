@@ -1,43 +1,22 @@
-"""
-Rutas para la gestión de categorías.
-"""
+"""Categorías del catálogo."""
 
-from typing import Any, Dict, Tuple
-from backend.models.category import create_category, get_all_categories, get_category_by_id
+from backend.models import category as categories
+from backend.web.router import Request, fail, ok, router
 
 
-def handle_get_categories() -> Dict[str, Any]:
-    """Maneja GET /api/categories."""
-    categories = get_all_categories()
-    return {
-        "success": True,
-        "count": len(categories),
-        "data": categories
-    }
+@router.get("/api/categories", cache=True)
+def list_all(req: Request):
+    rows = categories.list_categories()
+    return ok(rows, count=len(rows))
 
 
-def handle_get_category_detail(category_id: int) -> Dict[str, Any]:
-    """Maneja GET /api/categories/<id>."""
-    category = get_category_by_id(category_id)
-    if not category:
-        return {"success": False, "error": "Categoría no encontrada"}, 404
-    return {"success": True, "data": category}
+@router.get("/api/categories/<int:category_id>")
+def detail(req: Request):
+    category = categories.get_category(req.params["category_id"])
+    return ok(category) if category else fail("Categoría no encontrada.", 404)
 
 
-def handle_create_category(payload: Dict[str, Any]) -> Tuple[Dict[str, Any], int]:
-    """Maneja POST /api/categories para el panel de administración."""
-    try:
-        category_id = create_category(payload)
-        category = get_category_by_id(category_id)
-        return {
-            "success": True,
-            "message": "Categoría creada correctamente.",
-            "data": category,
-        }, 201
-    except ValueError as error:
-        return {"success": False, "error": str(error)}, 400
-    except Exception:
-        return {
-            "success": False,
-            "error": "No se pudo crear la categoría. Verifica el nombre e inténtalo de nuevo.",
-        }, 400
+@router.post("/api/categories", admin=True, mutates=True, limit="api")
+def create(req: Request):
+    new_id = categories.create_category(req.body)
+    return ok(categories.get_category(new_id), 201, message="Categoría creada correctamente.")

@@ -19,7 +19,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-BASE = "http://localhost:8000"
+BASE = os.environ.get("TEST_BASE_URL", "http://localhost:8000")
+# Contraseña real del panel, solo para las pruebas: ADMIN_TEST_PASSWORD=... python3 test_security.py
+ADMIN_PASSWORD = os.environ.get("ADMIN_TEST_PASSWORD", "")
 
 
 def send_request(path, method="GET", data=None, token=None):
@@ -138,7 +140,7 @@ def run_security_audit():
     print(f"  [🛡️ Protegido] Login con contraseña incorrecta -> Status {status} (Rechazado)")
 
     # Login con contraseña correcta
-    status, res = send_request("/api/admin/login", method="POST", data={"password": "AdminManiqui2026!"})
+    status, res = send_request("/api/admin/login", method="POST", data={"password": ADMIN_PASSWORD})
     assert status == 200 and "token" in res["data"]
     admin_token = res["data"]["token"]
     print(f"  [✔ Autorizado] Login con credenciales válidas -> Token generado: {admin_token[:16]}...")

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Administración | Maniquis y Exhibidores Caleb</title>
+    <title>Administración | Maniquíes y Exhibidores Caleb</title>
     <meta name="robots" content="noindex, nofollow">
     <meta name="theme-color" content="#232326">
 
@@ -20,8 +20,8 @@
 <!-- Panel del dueño: no aparece en el menú del sitio; se entra por /admin
      o por el enlace "Administración" del pie. Lógica en /js/admin.js -->
 <header class="admin-bar">
-    <a class="brand" href="/" aria-label="Maniquis y Exhibidores Caleb, ir al sitio">
-        <span class="brand-name">CALEB</span>
+    <a class="brand" href="/" aria-label="Maniquíes y Exhibidores Caleb, ir al sitio">
+        <span class="brand-logo"><img src="/assets/logo/logo-caleb.webp" alt="" width="480" height="333" decoding="async" fetchpriority="high"></span>
         <span class="brand-sub">Administración</span>
     </a>
     <div class="admin-bar-actions">
@@ -68,7 +68,7 @@
         <div class="admin-pane" role="tabpanel" id="pane-inv" aria-labelledby="tab-inv">
             <div class="admin-table-wrap">
                 <table class="admin-table">
-                    <thead><tr><th>Producto</th><th>Categoría</th><th>Código</th><th>Stock</th><th><span class="sr-only">Acciones</span></th></tr></thead>
+                    <thead><tr><th>Producto</th><th>Categoría</th><th>Código</th><th>Stock</th><th>Estado</th><th><span class="sr-only">Acciones</span></th></tr></thead>
                     <tbody id="adm-products"></tbody>
                 </table>
             </div>
@@ -135,6 +135,7 @@
         <h2 class="admin-title" id="adm-edit-title">Editar producto</h2>
         <label class="field"><span>Nombre</span><input name="name" id="adm-edit-name" required maxlength="120"></label>
         <label class="field"><span>Categoría</span><select name="category_id" id="adm-edit-category" required></select></label>
+        <label class="field"><span>Descripción</span><textarea name="description" id="adm-edit-description" required minlength="5" maxlength="1000" rows="5" placeholder="Para qué sirve, cómo es y en qué vitrinas luce."></textarea></label>
         <p class="form-error" id="adm-edit-error" role="alert" hidden></p>
         <div class="admin-dialog-actions">
             <button class="btn btn-outline" id="adm-edit-cancel" type="button">Cancelar</button>

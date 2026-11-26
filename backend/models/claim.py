@@ -6,67 +6,62 @@ Cumple con la normativa legal de protección al consumidor y comercio electróni
 import datetime
 from typing import Any, Dict, List, Optional
 from backend.database import get_db_connection, query_all, query_one
-from backend.security import (
+from backend.core.validation import (
+    ValidationError,
     is_valid_doc_number,
     is_valid_email,
     is_valid_phone,
     sanitize_string,
+    to_bool,
+    to_money,
 )
 
-
-def generate_claim_code(claim_type: str) -> str:
-    """Genera un código único secuencial para la Hoja de Reclamación."""
-    year = datetime.datetime.now().year
-    prefix = "REC" if claim_type == "Reclamo" else "QUE"
-    
-    # Siguiente al número más alto del año (no se repite aunque se borre alguno)
-    sql = "SELECT MAX(CAST(substr(claim_code, 10) AS INTEGER)) AS last FROM claims_book WHERE claim_code LIKE %s"
-    res = query_one(sql, (f"{prefix}-{year}-%",))
-    last = (res["last"] if res and res["last"] is not None else 0)
-    return f"{prefix}-{year}-{last + 1:04d}"
+DOC_TYPES = ("DNI", "CE", "Pasaporte", "RUC")
 
 
 def create_claim(data: Dict[str, Any]) -> Dict[str, Any]:
     """Valida y crea una nueva entrada en el Libro de Reclamaciones Virtual."""
     claim_type = data.get("claim_type", "Reclamo")
     if claim_type not in ("Reclamo", "Queja"):
-        raise ValueError("El tipo de reclamación debe ser 'Reclamo' o 'Queja'.")
+        raise ValidationError("El tipo de reclamación debe ser 'Reclamo' o 'Queja'.")
 
-    full_name = sanitize_string(data.get("full_name", ""))
-    doc_type = sanitize_string(data.get("doc_type", "DNI"))
-    doc_number = sanitize_string(data.get("doc_number", ""))
-    email = sanitize_string(data.get("email", ""))
-    phone = sanitize_string(data.get("phone", ""))
-    address = sanitize_string(data.get("address", ""))
-    is_minor = bool(data.get("is_minor"))
-    guardian_name = sanitize_string(data.get("guardian_name", ""))
+    full_name = sanitize_string(data.get("full_name", ""), 120)
+    doc_type = str(data.get("doc_type") or "DNI").strip()
+    if doc_type not in DOC_TYPES:
+        raise ValidationError("Tipo de documento no válido.")
+    doc_number = sanitize_string(data.get("doc_number", ""), 20)
+    email = sanitize_string(data.get("email", ""), 254)
+    phone = sanitize_string(data.get("phone", ""), 20)
+    address = sanitize_string(data.get("address", ""), 250)
+    is_minor = to_bool(data.get("is_minor", False))
+    guardian_name = sanitize_string(data.get("guardian_name", ""), 120)
 
     contracted_good = data.get("contracted_good", "Producto")
     if contracted_good not in ("Producto", "Servicio"):
-        raise ValueError("El bien contratado debe ser 'Producto' o 'Servicio'.")
+        raise ValidationError("El bien contratado debe ser 'Producto' o 'Servicio'.")
 
-    amount_claimed = float(data.get("amount_claimed", 0.0) or 0.0)
-    good_description = sanitize_string(data.get("good_description", ""))
-    claim_description = sanitize_string(data.get("claim_description", ""))
-    consumer_request = sanitize_string(data.get("consumer_request", ""))
+    amount_claimed = to_money(data.get("amount_claimed") or 0, "Monto reclamado")
+    good_description = sanitize_string(data.get("good_description", ""), 1000)
+    claim_description = sanitize_string(data.get("claim_description", ""), 3000)
+    consumer_request = sanitize_string(data.get("consumer_request", ""), 2000)
 
     # Validaciones legales mínimas
     if not full_name or len(full_name) < 3:
-        raise ValueError("Debe ingresar su nombre completo.")
+        raise ValidationError("Debe ingresar su nombre completo.")
     if not doc_number or not is_valid_doc_number(doc_number):
-        raise ValueError("Debe ingresar un número de documento válido.")
+        raise ValidationError("Debe ingresar un número de documento válido.")
     if not email or not is_valid_email(email):
-        raise ValueError("Debe ingresar un correo electrónico válido.")
+        raise ValidationError("Debe ingresar un correo electrónico válido.")
     if not is_valid_phone(phone):
-        raise ValueError("El número telefónico no tiene un formato válido.")
+        raise ValidationError("El número telefónico no tiene un formato válido.")
     if is_minor and len(guardian_name) < 3:
-        raise ValueError("Debe ingresar el nombre del padre, madre o apoderado del menor de edad.")
+        raise ValidationError("Debe ingresar el nombre del padre, madre o apoderado del menor de edad.")
     if not good_description or len(good_description) < 5:
-        raise ValueError("Debe detallar el bien o servicio contratado.")
+        raise ValidationError("Debe detallar el bien o servicio contratado.")
     if not claim_description or len(claim_description) < 10:
-        raise ValueError("Debe detallar los motivos de su queja o reclamo.")
+        raise ValidationError("Debe detallar los motivos de su queja o reclamo.")
     if not consumer_request or len(consumer_request) < 5:
-        raise ValueError("Debe especificar su pedido o solución esperada.")
+        raise ValidationError("Debe especificar su pedido o solución esperada.")
 
     sql = """
         INSERT INTO claims_book (
@@ -117,8 +112,7 @@ def create_claim(data: Dict[str, Any]) -> Dict[str, Any]:
 
 def get_claim_by_code(claim_code: str) -> Optional[Dict[str, Any]]:
     """Obtiene una hoja de reclamación por su código único de seguimiento."""
-    sql = "SELECT * FROM claims_book WHERE claim_code = %s"
-    return query_one(sql, (claim_code.strip(),))
+    return query_one("SELECT * FROM claims_book WHERE claim_code = %s", (claim_code.strip()[:30],))
 
 
 def get_all_claims(limit: int = 1000) -> List[Dict[str, Any]]:

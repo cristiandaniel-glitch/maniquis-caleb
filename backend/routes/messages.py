@@ -1,23 +1,15 @@
-"""
-Rutas para el formulario de contacto.
-"""
+"""Formulario de contacto (Nosotros) y bandeja de mensajes del panel."""
 
-from typing import Any, Dict, Optional, Tuple, Union
 from backend.models.message import create_message, get_all_messages
+from backend.web.router import Request, ok, router
 
 
-def handle_send_message(payload: Dict[str, Any], client_ip: Optional[str] = None) -> Union[Dict[str, Any], Tuple[Dict[str, Any], int]]:
-    """Maneja POST /api/contact."""
-    try:
-        res = create_message(payload, ip_address=client_ip)
-        return {"success": True, "data": res}, 201
-    except ValueError as ve:
-        return {"success": False, "error": str(ve)}, 400
-    except Exception:
-        return {"success": False, "error": "Error interno al enviar mensaje."}, 500
+@router.post("/api/contact", honeypot=True)
+def send(req: Request):
+    return ok(create_message(req.body, ip_address=req.client_ip), 201)
 
 
-def handle_get_messages() -> Dict[str, Any]:
-    """Maneja GET /api/messages."""
+@router.get("/api/messages", admin=True)
+def list_all(req: Request):
     messages = get_all_messages()
-    return {"success": True, "count": len(messages), "data": messages}
+    return ok(messages, count=len(messages))

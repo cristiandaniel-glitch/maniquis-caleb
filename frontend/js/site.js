@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Novedades Caleb — sitio público
+   Maniquíes y Exhibidores Caleb — sitio público
    Todo el contenido que viene de la API se inserta con textContent (nunca
    innerHTML) para no abrir la puerta a XSS.
    ========================================================================== */

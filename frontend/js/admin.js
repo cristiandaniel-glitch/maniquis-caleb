@@ -1,4 +1,4 @@
-/* Panel de administración de Novedades Caleb (/admin).
+/* Panel de administración de Maniquíes y Exhibidores Caleb (/admin).
    Ingreso con la contraseña maestra → token de sesión (4 h) guardado solo en
    esta pestaña. Todo el texto que viene de la base de datos se pinta con
    textContent, nunca como HTML. */
@@ -204,7 +204,7 @@
     }
 
     function emptyRow(tbody, text) {
-        tbody.replaceChildren(el("tr", {}, el("td", { colspan: "5", class: "admin-empty", text })));
+        tbody.replaceChildren(el("tr", {}, el("td", { colspan: "6", class: "admin-empty", text })));
     }
 
     function loadAdminCategories() {
@@ -271,17 +271,24 @@
         }
     });
 
+    // Inventario completo: activos e inactivos (los inactivos no se ven en la página)
     function loadProducts() {
         const tbody = $("#adm-products");
         emptyRow(tbody, "Cargando inventario…");
-        return guard(api("/api/products").then(({ data }) => {
+        return guard(api("/api/admin/products").then(({ data }) => {
             if (!data.length) return emptyRow(tbody, "No hay productos en el catálogo.");
             tbody.replaceChildren(...data.map((p) => {
+                const active = p.is_active !== false;
                 const edit = el("button", { class: "btn btn-dark admin-edit", type: "button", text: "Editar", "aria-label": `Editar ${p.name}` });
                 edit.addEventListener("click", () => editProduct(p));
-                const del = el("button", { class: "btn btn-outline admin-del", type: "button", text: "Eliminar", "aria-label": `Eliminar ${p.name}` });
-                del.addEventListener("click", () => removeProduct(p, del));
-                return el("tr", {}, [
+                const toggle = el("button", {
+                    class: `btn ${active ? "btn-outline" : "btn-tape"} admin-toggle`,
+                    type: "button",
+                    text: active ? "Desactivar" : "Activar",
+                    "aria-label": `${active ? "Desactivar" : "Activar"} ${p.name}`,
+                });
+                toggle.addEventListener("click", () => toggleProduct(p, toggle));
+                return el("tr", { class: active ? null : "is-inactive" }, [
                     el("td", {}, el("div", { class: "admin-prod" }, [
                         el("img", { src: p.image_url, alt: "", loading: "lazy", width: "44", height: "56" }),
                         el("span", { text: p.name }),
@@ -289,7 +296,12 @@
                     el("td", { "data-label": "Categoría", text: p.category_name || "—" }),
                     el("td", { "data-label": "Código", text: p.sku || "—" }),
                     el("td", { "data-label": "Stock", text: p.stock > 0 ? `${p.stock} un.` : "Consultar" }),
-                    el("td", {}, el("div", { class: "admin-actions" }, [edit, del])),
+                    el("td", { "data-label": "Estado" }, el("span", {
+                        class: `admin-badge${active ? "" : " is-off"}`,
+                        text: active ? "Activo" : "Inactivo",
+                        title: active ? "Se ve en el catálogo" : "Oculto: no se ve en el catálogo",
+                    })),
+                    el("td", {}, el("div", { class: "admin-actions" }, [edit, toggle])),
                 ]);
             }));
         }));
@@ -299,6 +311,7 @@
     const editForm = $("#adm-edit-form");
     const editName = $("#adm-edit-name");
     const editCategory = $("#adm-edit-category");
+    const editDescription = $("#adm-edit-description");
     const editError = $("#adm-edit-error");
     $("#adm-edit-cancel").addEventListener("click", () => editDialog.close());
 
@@ -308,6 +321,7 @@
         editForm.dataset.productId = String(product.id);
         editName.value = plain(product.name);
         editCategory.value = String(product.category_id);
+        editDescription.value = plain(product.description);
         editError.hidden = true;
         editError.textContent = "";
         editDialog.showModal();
@@ -323,12 +337,14 @@
     editForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         const name = editName.value.trim();
-        if (!name) {
-            editError.textContent = "Escribe el nombre del producto.";
+        const description = editDescription.value.trim();
+        const fail = (message, field) => {
+            editError.textContent = message;
             editError.hidden = false;
-            editName.focus();
-            return;
-        }
+            field.focus();
+        };
+        if (!name) return fail("Escribe el nombre del producto.", editName);
+        if (description.length < 5) return fail("La descripción debe tener al menos 5 caracteres.", editDescription);
 
         const submit = editForm.querySelector("button[type=submit]");
         submit.disabled = true;
@@ -336,27 +352,25 @@
         try {
             await api(`/api/products/${editForm.dataset.productId}`, {
                 method: "PUT",
-                body: JSON.stringify({ name, category_id: Number(editCategory.value) }),
+                body: JSON.stringify({ name, description, category_id: Number(editCategory.value) }),
             });
             editDialog.close();
             toast("Producto actualizado.");
             loadProducts();
         } catch (error) {
             if (error instanceof AuthError) showLogin(error.message);
-            else {
-                editError.textContent = error.message;
-                editError.hidden = false;
-            }
+            else fail(error.message, editName);
         } finally {
             submit.disabled = false;
         }
     });
 
-    async function removeProduct(p, btn) {
-        if (!window.confirm(`¿Quitar "${plain(p.name)}" del catálogo? Dejará de verse en la página.`)) return;
+    async function toggleProduct(p, btn) {
+        const activate = p.is_active === false;
+        if (!activate && !window.confirm(`¿Desactivar "${plain(p.name)}"? Dejará de verse en la página, pero no se borra: puedes activarlo cuando quieras.`)) return;
         btn.disabled = true;
-        await guard(api(`/api/products/${p.id}`, { method: "DELETE" }).then(() => {
-            toast(`"${plain(p.name)}" se quitó del catálogo.`);
+        await guard(api(`/api/products/${p.id}/active`, { method: "PATCH", body: JSON.stringify({ is_active: activate }) }).then(() => {
+            toast(activate ? `"${plain(p.name)}" volvió al catálogo.` : `"${plain(p.name)}" se ocultó del catálogo.`);
             loadProducts();
             loadStats();
         }));
