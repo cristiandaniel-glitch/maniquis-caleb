@@ -1127,14 +1127,17 @@ main { overflow-x: clip; }
    La cuadrícula ocupa el espacio que sobra y siempre tiene 2 filas.
    ========================================================================== */
 .catalog-page {
-    height: 100vh; height: 100svh; min-height: 600px;
-    padding: calc(var(--header-h) + 18px) 0 12px;
+    /* Alto = pantalla menos la cabecera (72 px + 6 px de la cinta), con el
+       mismo aire arriba y abajo. Así se ve pareja aunque no esté alineada. */
+    --catalog-top: calc(var(--header-h) + 6px);
+    height: calc(100vh - var(--catalog-top)); height: calc(100svh - var(--catalog-top)); min-height: 540px;
+    padding: 22px 0;
     display: flex;
-    /* Al bajar con la rueda del mouse, la sección "se acomoda" sola para
-       verse completa (de la cabecera hasta las flechas de página). El margen
-       negativo anula el scroll-padding general, que aquí ya va dentro del padding. */
+    /* Al bajar con la rueda del mouse la sección se acomoda sola justo debajo
+       de la cabecera y se ve completa. El scroll-padding general es la
+       cabecera + 16 px; este margen negativo lo deja en la cabecera + 6 px. */
     scroll-snap-align: start;
-    scroll-margin-top: calc(-1 * (var(--header-h) + 16px));
+    scroll-margin-top: -10px;
 }
 html:has(.catalog-page) { scroll-snap-type: y proximity; }
 .catalog-page-inner { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1; }
