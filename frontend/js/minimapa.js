@@ -3,7 +3,7 @@
 
    - Una burbuja redonda muestra el mapa alrededor del stand.
    - Al tocarla se abre el mapa completo con tres vistas: Mapa, Satélite y
-     Croquis 3D (vista satelital inclinada), más "Cómo llegar" y Google Earth 3D.
+     Croquis 3D (vista satelital inclinada), más el botón "Cómo llegar".
    - El mapa de la burbuja se carga después de que la página terminó de
      cargar, para no hacerla más lenta. En equipos lentos (clase "lite") la
      burbuja muestra solo el ícono y el mapa se carga al abrirla.
@@ -24,7 +24,6 @@
     const LINKS = {
         directions: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(coords)}`,
         open: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(coords)}`,
-        earth3d: `https://earth.google.com/web/@${coords},3400a,350d,35y,20h,65t,0r`,
     };
     const VIEWS = {
         mapa: { label: "Mapa", src: embed(17, false) },
@@ -48,7 +47,6 @@
     }
     const PIN = ["M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z", "M12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"];
     const ROUTE = ["M3 11l18-8-8 18-2-8-8-2z"];
-    const GLOBE = ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z", "M3 12h18", "M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"];
     const CLOSE = ["M6 6l12 12M18 6 6 18"];
 
     function el(tag, props = {}, children = []) {
@@ -152,7 +150,6 @@
                 tabs,
                 el("div", { class: "map-actions" }, [
                     el("a", { class: "btn btn-tape map-btn", href: LINKS.directions, target: "_blank", rel: "noopener" }, [icon(ROUTE, 18), "Cómo llegar"]),
-                    el("a", { class: "btn btn-ghost-light map-btn", href: LINKS.earth3d, target: "_blank", rel: "noopener" }, [icon(GLOBE, 18), "Ver en 3D"]),
                 ]),
             ]),
             stage,
@@ -192,7 +189,7 @@
                     f,
                     el("span", { class: "map-marker", "aria-hidden": "true" }, [icon(PIN, 34), el("b", { text: "Stand 3" })]),
                 ]),
-                el("p", { class: "map-hint", text: "Vista inclinada de referencia. Para edificios en 3D reales, usa «Ver en 3D» (Google Earth)." }),
+                el("p", { class: "map-hint", text: "Vista inclinada de referencia: el pin marca nuestro stand." }),
             );
         } else {
             stage.replaceChildren(f);
