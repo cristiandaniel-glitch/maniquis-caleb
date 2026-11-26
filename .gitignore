@@ -17,6 +17,8 @@ database/*.sqlite3
 # Variables de entorno y secretos
 .env
 .env.local
+.env.*
+!.env.example
 
 # Logs del sistema
 *.log
