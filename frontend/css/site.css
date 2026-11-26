@@ -1134,12 +1134,12 @@ main { overflow-x: clip; }
     padding: 22px 0;
     display: flex;
     /* Al bajar con la rueda del mouse la sección se acomoda sola justo debajo
-       de la cabecera y se ve completa. El scroll-padding general es la
-       cabecera + 16 px; este margen negativo lo deja en la cabecera + 6 px. */
+       de la cabecera y se ve completa. */
     scroll-snap-align: start;
-    scroll-margin-top: -10px;
 }
-html:has(.catalog-page) { scroll-snap-type: y proximity; }
+/* El área de "acomodo" del navegador debe medir lo mismo que la sección: si
+   la sección fuera más alta, el navegador no la acomoda. */
+html:has(.catalog-page) { scroll-snap-type: y proximity; scroll-padding-top: calc(var(--header-h) + 6px); }
 .catalog-page-inner { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1; }
 .catalog-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
 .catalog-page .catalog-title { margin: 0; font-size: clamp(1.9rem, 3vw, 2.7rem); line-height: 1.1; }
