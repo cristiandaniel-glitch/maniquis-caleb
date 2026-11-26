@@ -205,6 +205,27 @@
     });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeNav(); });
 
+    // En Inicio, el logo y el enlace "Inicio" no recargan la página (eso
+    // causaba un parpadeo mientras se volvían a dibujar las capas): solo
+    // suben al principio con un desplazamiento suave.
+    if (document.body.dataset.page === "inicio") {
+        document.addEventListener("click", (e) => {
+            const link = e.target.closest('a[href="/"], a[href="/index.html"], a[href="index.html"]');
+            if (!link || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+            e.preventDefault();
+            closeNav();
+            const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+        });
+    }
+
+    // Las animaciones de entrada de los botones flotantes solo se ven en la
+    // primera página de la visita; al cambiar de página ya están en su sitio.
+    try {
+        if (sessionStorage.getItem("caleb-floats") === "1") document.documentElement.classList.add("floats-seen");
+        else sessionStorage.setItem("caleb-floats", "1");
+    } catch (e) { /* sin almacenamiento */ }
+
     /* ------------------------------ catálogo ------------------------------ */
 
     const Catalog = {

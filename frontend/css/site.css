@@ -1887,3 +1887,20 @@ body { font-size: 1.125rem; }
 .nf .actions { justify-content: center; margin-top: 12px; }
 .nf-logo { height: 70px; margin-bottom: 10px; }
 .nf-code { font-family: var(--f-display); font-weight: 800; font-size: clamp(5rem, 22vw, 9rem); line-height: .9; color: var(--cinta); }
+
+/* ==========================================================================
+   Transición suave entre páginas (Chrome/Edge 126+, Safari 18.2+). La página
+   anterior se mantiene en pantalla hasta que la nueva está lista y se funden,
+   en vez de mostrar un instante en blanco. La cabecera y los botones flotantes
+   quedan fijos durante el cambio.
+   ========================================================================== */
+@view-transition { navigation: auto; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .22s; }
+.site-header { view-transition-name: cabecera; }
+.wa-float { view-transition-name: wa-flotante; }
+.social-float { view-transition-name: redes-flotantes; }
+.minimap { view-transition-name: minimapa; }
+.floats-seen .social-float, .floats-seen .minimap { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+    @view-transition { navigation: none; }
+}
