@@ -53,7 +53,7 @@
         <ul class="admin-stats" aria-label="Resumen">
             <li><span>Productos activos</span><strong id="st-products">—</strong></li>
             <li><span>Categorías</span><strong id="st-categories">—</strong></li>
-            <li><span>Mensajes</span><strong id="st-messages">—</strong></li>
+            <li><span>Mensajes sin leer</span><strong id="st-messages">—</strong></li>
             <li><span>Reclamos pendientes</span><strong id="st-claims">—</strong></li>
         </ul>
 
@@ -63,6 +63,7 @@
             <button role="tab" type="button" id="tab-new" aria-controls="pane-new" aria-selected="false" tabindex="-1">Añadir maniquí</button>
             <button role="tab" type="button" id="tab-msg" aria-controls="pane-msg" aria-selected="false" tabindex="-1">Mensajes</button>
             <button role="tab" type="button" id="tab-clm" aria-controls="pane-clm" aria-selected="false" tabindex="-1">Reclamaciones</button>
+            <button role="tab" type="button" id="tab-rev" aria-controls="pane-rev" aria-selected="false" tabindex="-1">Reseñas</button>
         </div>
 
         <div class="admin-pane" role="tabpanel" id="pane-inv" aria-labelledby="tab-inv">
@@ -125,7 +126,13 @@
         </div>
 
         <div class="admin-pane" role="tabpanel" id="pane-clm" aria-labelledby="tab-clm" hidden>
+            <p class="admin-note">Por ley (Indecopi) cada reclamo debe responderse en un máximo de 15 días hábiles. Escribe aquí la respuesta que diste al cliente y cambia el estado.</p>
             <ul class="admin-list" id="adm-claims"></ul>
+        </div>
+
+        <div class="admin-pane" role="tabpanel" id="pane-rev" aria-labelledby="tab-rev" hidden>
+            <p class="admin-note">Las reseñas se publican solas. Si alguna es falsa, ofensiva o de spam, ocúltala: deja de verse en la página, pero no se borra.</p>
+            <ul class="admin-list" id="adm-reviews"></ul>
         </div>
     </section>
 </main>

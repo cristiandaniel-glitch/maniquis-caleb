@@ -4,15 +4,20 @@ from typing import Any, Dict, List
 
 from backend.core.moderation import contains_profanity
 from backend.core.validation import ValidationError, clean_text, to_int
-from backend.database import execute_insert, query_all
+from backend.database import execute_insert, execute_mutation, query_all
 
 
-def list_reviews(limit: int = 500) -> List[Dict[str, Any]]:
+def list_reviews(limit: int = 500, include_hidden: bool = False) -> List[Dict[str, Any]]:
+    where = "" if include_hidden else "WHERE is_visible"
     return query_all(
-        """SELECT id, name, boutique, city, product_model, rating, comment, is_verified, created_at
-           FROM reviews ORDER BY id DESC LIMIT %s""",
+        f"""SELECT id, name, boutique, city, product_model, rating, comment, is_verified, is_visible, created_at
+            FROM reviews {where} ORDER BY id DESC LIMIT %s""",
         (limit,),
     )
+
+
+def set_review_visible(review_id: int, visible: bool) -> bool:
+    return execute_mutation("UPDATE reviews SET is_visible = %s WHERE id = %s", (visible, review_id)) > 0
 
 
 def create_review(data: Dict[str, Any]) -> Dict[str, Any]:

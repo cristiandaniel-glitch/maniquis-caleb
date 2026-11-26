@@ -119,3 +119,35 @@ def get_all_claims(limit: int = 1000) -> List[Dict[str, Any]]:
     """Obtiene el listado de reclamaciones para gestión administrativa."""
     sql = "SELECT * FROM claims_book ORDER BY created_at DESC LIMIT %s"
     return query_all(sql, (limit,))
+
+
+CLAIM_STATUSES = ("Pendiente", "En Proceso", "Atendido", "Cerrado")
+
+
+def respond_claim(claim_code: str, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """El proveedor cambia el estado y/o registra su respuesta al consumidor."""
+    claim = get_claim_by_code(claim_code)
+    if not claim:
+        return None
+    status = str(data.get("status") or claim["status"]).strip()
+    if status not in CLAIM_STATUSES:
+        raise ValidationError("Estado no válido.")
+    response = data.get("admin_response")
+    if response is not None:
+        response = sanitize_string(response, 3000) or None
+        if response and len(response) < 10:
+            raise ValidationError("La respuesta debe tener al menos 10 caracteres.")
+    else:
+        response = claim.get("admin_response")
+    if status in ("Atendido", "Cerrado") and not response:
+        raise ValidationError("Para marcarlo como atendido escribe la respuesta que se dio al consumidor.")
+    query_one(
+        """UPDATE claims_book
+           SET status = %s,
+               admin_response = %s,
+               response_date = CASE WHEN %s::text IS NOT NULL AND admin_response IS DISTINCT FROM %s::text
+                                    THEN now() ELSE response_date END
+           WHERE id = %s RETURNING id""",
+        (status, response, response, response, claim["id"]),
+    )
+    return get_claim_by_code(claim_code)

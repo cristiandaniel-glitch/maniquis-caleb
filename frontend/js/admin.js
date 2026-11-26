@@ -140,7 +140,7 @@
 
     // ------------------------------------------------------------ pestañas
     const tabs = [...document.querySelectorAll(".admin-tabs [role=tab]")];
-    const loaders = { "pane-inv": () => loadProducts(), "pane-cat": () => loadAdminCategories(), "pane-msg": () => loadMessages(), "pane-clm": () => loadClaims() };
+    const loaders = { "pane-inv": () => loadProducts(), "pane-cat": () => loadAdminCategories(), "pane-msg": () => loadMessages(), "pane-clm": () => loadClaims(), "pane-rev": () => loadReviews() };
     function selectTab(tab) {
         tabs.forEach((t) => {
             const on = t === tab;
@@ -167,7 +167,7 @@
         return guard(api("/api/stats").then(({ data }) => {
             $("#st-products").textContent = data.products_total ?? "—";
             $("#st-categories").textContent = data.categories_total ?? "—";
-            $("#st-messages").textContent = data.messages_total ?? "—";
+            $("#st-messages").textContent = data.messages_unread ?? "—";
             $("#st-claims").textContent = data.claims_pending ?? "—";
         }));
     }
@@ -382,20 +382,56 @@
         list.replaceChildren(el("li", { class: "admin-empty", text: "Cargando mensajes…" }));
         return guard(api("/api/messages").then(({ data }) => {
             if (!data.length) return list.replaceChildren(el("li", { class: "admin-empty", text: "No hay mensajes todavía." }));
-            list.replaceChildren(...data.map((m) => el("li", { class: "admin-item" }, [
-                el("div", { class: "admin-item-head" }, [
-                    el("strong", { text: m.name }),
-                    el("span", { class: "muted", text: fecha(m.created_at) }),
-                ]),
-                el("p", { class: "admin-item-sub", text: m.subject || "Sin asunto" }),
-                el("p", { text: m.message }),
-                el("p", { class: "muted" }, [
-                    m.email ? el("a", { href: `mailto:${m.email}`, text: m.email }) : null,
-                    m.email && m.phone ? " · " : null,
-                    m.phone ? el("a", { href: `https://wa.me/${String(m.phone).replace(/\D/g, "")}`, target: "_blank", rel: "noopener", text: `WhatsApp ${m.phone}` }) : null,
-                ]),
-            ])));
+            list.replaceChildren(...data.map((m) => {
+                const unread = m.status === "unread";
+                const toggle = el("button", { class: "btn btn-outline admin-mini", type: "button", text: unread ? "Marcar como leído" : "Marcar como no leído" });
+                toggle.addEventListener("click", () => setMessage(m.id, unread ? "read" : "unread", toggle));
+                const archive = el("button", { class: "btn btn-outline admin-mini", type: "button", text: "Archivar" });
+                archive.addEventListener("click", () => setMessage(m.id, "archived", archive));
+                return el("li", { class: `admin-item${unread ? " is-unread" : ""}` }, [
+                    el("div", { class: "admin-item-head" }, [
+                        el("strong", { text: m.name }),
+                        unread ? el("span", { class: "admin-badge is-pending", text: "Nuevo" }) : null,
+                        el("span", { class: "muted", text: fecha(m.created_at) }),
+                    ]),
+                    el("p", { class: "admin-item-sub", text: m.subject || "Sin asunto" }),
+                    el("p", { text: m.message }),
+                    el("p", { class: "muted" }, [
+                        m.email ? el("a", { href: `mailto:${m.email}`, text: m.email }) : null,
+                        m.email && m.phone ? " · " : null,
+                        m.phone ? el("a", { href: `https://wa.me/${String(m.phone).replace(/\D/g, "")}`, target: "_blank", rel: "noopener", text: `WhatsApp ${m.phone}` }) : null,
+                    ]),
+                    el("div", { class: "admin-actions" }, [toggle, archive]),
+                ]);
+            }));
         }));
+    }
+
+    async function setMessage(id, status, btn) {
+        btn.disabled = true;
+        await guard(api(`/api/messages/${id}`, { method: "PATCH", body: JSON.stringify({ status }) }).then(() => {
+            if (status === "archived") toast("Mensaje archivado.");
+            loadMessages();
+            loadStats();
+        }));
+        btn.disabled = false;
+    }
+
+    const CLAIM_STATUSES = ["Pendiente", "En Proceso", "Atendido", "Cerrado"];
+
+    // Días hábiles (lunes a viernes) que quedan del plazo legal de 15
+    function businessDaysLeft(created) {
+        const d = new Date(String(created).replace(" ", "T"));
+        if (isNaN(d)) return null;
+        let count = 0;
+        const today = new Date();
+        const cur = new Date(d);
+        while (cur < today) {
+            cur.setDate(cur.getDate() + 1);
+            const day = cur.getDay();
+            if (day !== 0 && day !== 6) count += 1;
+        }
+        return 15 - count;
     }
 
     function loadClaims() {
@@ -403,19 +439,75 @@
         list.replaceChildren(el("li", { class: "admin-empty", text: "Cargando Libro de Reclamaciones…" }));
         return guard(api("/api/claims/all").then(({ data }) => {
             if (!data.length) return list.replaceChildren(el("li", { class: "admin-empty", text: "No hay reclamos registrados." }));
-            list.replaceChildren(...data.map((c) => el("li", { class: "admin-item" }, [
-                el("div", { class: "admin-item-head" }, [
-                    el("strong", { text: `${c.claim_code} · ${c.full_name}` }),
-                    el("span", { class: `admin-badge${c.status === "Pendiente" ? " is-pending" : ""}`, text: c.status }),
-                ]),
-                el("p", { class: "admin-item-sub", text: `${c.claim_type} · ${fecha(c.created_at)} · responder en 15 días hábiles` }),
-                el("dl", { class: "admin-dl" }, [
-                    el("dt", { text: "Bien contratado" }), el("dd", { text: `${c.contracted_good || "—"}${c.amount_claimed ? ` (${soles(c.amount_claimed)})` : ""}` }),
-                    el("dt", { text: "Detalle" }), el("dd", { text: c.claim_description }),
-                    el("dt", { text: "Pedido del cliente" }), el("dd", { text: c.consumer_request }),
-                    el("dt", { text: "Contacto" }), el("dd", { text: [c.email, c.phone].filter(Boolean).join(" · ") || "—" }),
-                ]),
-            ])));
+            list.replaceChildren(...data.map((c) => {
+                const open = c.status === "Pendiente" || c.status === "En Proceso";
+                const left = open ? businessDaysLeft(c.created_at) : null;
+                const deadline = left == null ? "" : left >= 0 ? ` · quedan ${left} días hábiles` : ` · plazo vencido hace ${-left} días hábiles`;
+                const select = el("select", { "aria-label": `Estado de ${c.claim_code}` },
+                    CLAIM_STATUSES.map((st) => el("option", { value: st, text: st })));
+                select.value = c.status;
+                const answer = el("textarea", { rows: "3", maxlength: "3000", placeholder: "Respuesta que se dio al consumidor (fecha, solución, medio por el que se respondió)." });
+                answer.value = plain(c.admin_response || "");
+                const save = el("button", { class: "btn btn-dark admin-mini", type: "submit", text: "Guardar respuesta" });
+                const form = el("form", { class: "admin-claim-form" }, [
+                    el("label", { class: "field" }, [el("span", { text: "Estado" }), select]),
+                    el("label", { class: "field" }, [el("span", { text: "Respuesta al consumidor" }), answer]),
+                    save,
+                ]);
+                form.addEventListener("submit", async (e) => {
+                    e.preventDefault();
+                    save.disabled = true;
+                    await guard(api(`/api/claims/${encodeURIComponent(c.claim_code)}`, {
+                        method: "PATCH",
+                        body: JSON.stringify({ status: select.value, admin_response: answer.value.trim() || null }),
+                    }).then(() => { toast(`Reclamo ${c.claim_code} actualizado.`); loadClaims(); loadStats(); }));
+                    save.disabled = false;
+                });
+                return el("li", { class: "admin-item" }, [
+                    el("div", { class: "admin-item-head" }, [
+                        el("strong", { text: `${c.claim_code} · ${c.full_name}` }),
+                        el("span", { class: `admin-badge${open ? " is-pending" : ""}${left != null && left < 0 ? " is-late" : ""}`, text: c.status }),
+                    ]),
+                    el("p", { class: "admin-item-sub", text: `${c.claim_type} · ${fecha(c.created_at)}${deadline}` }),
+                    el("dl", { class: "admin-dl" }, [
+                        el("dt", { text: "Bien contratado" }), el("dd", { text: `${c.contracted_good || "—"}${c.amount_claimed ? ` (${soles(c.amount_claimed)})` : ""}` }),
+                        el("dt", { text: "Detalle" }), el("dd", { text: c.claim_description }),
+                        el("dt", { text: "Pedido del cliente" }), el("dd", { text: c.consumer_request }),
+                        el("dt", { text: "Documento" }), el("dd", { text: `${c.doc_type} ${c.doc_number}` }),
+                        el("dt", { text: "Contacto" }), el("dd", { text: [c.email, c.phone].filter(Boolean).join(" · ") || "—" }),
+                        c.response_date ? el("dt", { text: "Respondido" }) : null,
+                        c.response_date ? el("dd", { text: fecha(c.response_date) }) : null,
+                    ]),
+                    form,
+                ]);
+            }));
+        }));
+    }
+
+    function loadReviews() {
+        const list = $("#adm-reviews");
+        list.replaceChildren(el("li", { class: "admin-empty", text: "Cargando reseñas…" }));
+        return guard(api("/api/admin/reviews").then(({ data }) => {
+            if (!data.length) return list.replaceChildren(el("li", { class: "admin-empty", text: "Todavía no hay reseñas." }));
+            list.replaceChildren(...data.map((r) => {
+                const visible = r.is_visible !== false;
+                const btn = el("button", { class: `btn ${visible ? "btn-outline" : "btn-tape"} admin-mini`, type: "button", text: visible ? "Ocultar" : "Mostrar de nuevo" });
+                btn.addEventListener("click", async () => {
+                    btn.disabled = true;
+                    await guard(api(`/api/reviews/${r.id}/visible`, { method: "PATCH", body: JSON.stringify({ is_visible: !visible }) })
+                        .then((res) => { toast(res.message); loadReviews(); }));
+                    btn.disabled = false;
+                });
+                return el("li", { class: `admin-item${visible ? "" : " is-hidden-review"}` }, [
+                    el("div", { class: "admin-item-head" }, [
+                        el("strong", { text: `${"★".repeat(Number(r.rating) || 0)} ${plain(r.name)}` }),
+                        el("span", { class: `admin-badge${visible ? "" : " is-off"}`, text: visible ? "Visible" : "Oculta" }),
+                    ]),
+                    el("p", { class: "admin-item-sub", text: [r.boutique, r.city, r.product_model, fecha(r.created_at)].filter(Boolean).join(" · ") }),
+                    el("p", { text: r.comment }),
+                    el("div", { class: "admin-actions" }, [btn]),
+                ]);
+            }));
         }));
     }
 

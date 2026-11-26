@@ -165,13 +165,24 @@
     const header = $("#site-header");
     const tapeFill = $("#tape-progress-fill");
     const scene = $("#scene");
+    // Las medidas de la página se leen solo al cargar o al cambiar de tamaño (no
+    // en cada scroll), y la cinta se recorta con clip-path en vez de cambiar su
+    // ancho: así el scroll no obliga a recalcular la maqueta de la página.
+    let solidAt = 40, maxScroll = 1, wasSolid = null, lastTape = "";
+    function measureHeader() {
+        solidAt = scene ? scene.offsetHeight - window.innerHeight - 10 : 40;
+        maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    }
     function updateHeader() {
         const y = window.scrollY;
-        const solidAt = scene ? scene.offsetHeight - window.innerHeight - 10 : 40;
-        header.classList.toggle("is-solid", y > solidAt);
-        const max = document.documentElement.scrollHeight - window.innerHeight;
-        tapeFill.style.width = (max > 0 ? Math.min(100, (y / max) * 100) : 0) + "%";
+        const solid = y > solidAt;
+        if (solid !== wasSolid) { header.classList.toggle("is-solid", solid); wasSolid = solid; }
+        const rest = (100 - Math.min(100, (y / maxScroll) * 100)).toFixed(1);
+        if (rest !== lastTape) { tapeFill.style.clipPath = `inset(0 ${rest}% 0 0)`; lastTape = rest; }
     }
+    measureHeader();
+    if ("ResizeObserver" in window) new ResizeObserver(() => { measureHeader(); updateHeader(); }).observe(document.body);
+    else window.addEventListener("resize", () => { measureHeader(); updateHeader(); });
     let ticking = false;
     window.addEventListener("scroll", () => {
         if (ticking) return;

@@ -39,16 +39,15 @@ _GZIP: Dict[Tuple[str, float], bytes] = {}
 _TOTAL = [0]
 _LOCK = threading.Lock()
 
-NOT_FOUND_HTML = (
-    "<!DOCTYPE html><html lang='es-PE'><head><meta charset='utf-8'>"
-    "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    "<title>Página no encontrada | Maniquíes y Exhibidores Caleb</title>"
-    "<link rel='stylesheet' href='/css/site.css'></head>"
-    "<body style='display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px'>"
-    "<main><h1 class='display-l'>Esta página no existe</h1>"
-    "<p class='muted' style='margin:12px 0 24px'>Puede que el enlace esté mal escrito o que la página se haya movido.</p>"
-    "<a class='btn btn-dark' href='/'>Volver al inicio</a></main></body></html>"
-).encode("utf-8")
+def _load_not_found() -> bytes:
+    try:
+        with open(os.path.join(STATIC_ROOT, "404.html"), "rb") as handle:
+            return handle.read()
+    except OSError:
+        return b"<!DOCTYPE html><title>404</title><h1>Pagina no encontrada</h1><a href='/'>Inicio</a>"
+
+
+NOT_FOUND_HTML = _load_not_found()
 
 
 @dataclass

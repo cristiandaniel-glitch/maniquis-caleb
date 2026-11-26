@@ -15,7 +15,7 @@ from backend.config import (
     COMPANY_STAND,
     COMPANY_TAX_ID,
 )
-from backend.models.claim import create_claim, get_all_claims, get_claim_by_code
+from backend.models.claim import create_claim, get_all_claims, get_claim_by_code, respond_claim
 from backend.web.router import Request, fail, ok, router
 
 
@@ -34,7 +34,7 @@ COMPANY_INFO = {
 
 # Datos que ve cualquiera que consulte un código (sin datos personales: los
 # códigos son correlativos y se pueden adivinar — Ley 29733).
-PUBLIC_CLAIM_FIELDS = ("claim_code", "claim_type", "status", "created_at")
+PUBLIC_CLAIM_FIELDS = ("claim_code", "claim_type", "status", "created_at", "response_date")
 
 
 @router.post("/api/claims", honeypot=True)
@@ -59,3 +59,12 @@ def detail(req: Request):
     if not req.is_admin:
         claim = {key: claim.get(key) for key in PUBLIC_CLAIM_FIELDS}
     return ok(claim)
+
+
+@router.patch("/api/claims/<code>", admin=True)
+def respond(req: Request):
+    """Panel: {"status": "Atendido", "admin_response": "..."}"""
+    claim = respond_claim(req.params["code"], req.body)
+    if not claim:
+        return fail("No se encontró ninguna reclamación con ese código.", 404)
+    return ok(claim, message="Reclamo actualizado.")

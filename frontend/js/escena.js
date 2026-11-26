@@ -61,11 +61,26 @@
         });
     })();
 
+    // Escribe un estilo solo si cambió. En cada cuadro del scroll la mayoría
+    // de las capas están quietas (su tramo ya terminó o no empieza): no
+    // tocarlas evita recalcular estilos y repintar, que es lo que más pesa en
+    // celulares de gama media.
+    const styleCache = new WeakMap();
+    const css = (el, prop, value) => {
+        let c = styleCache.get(el);
+        if (!c) { c = {}; styleCache.set(el, c); }
+        if (c[prop] === value) return;
+        c[prop] = value;
+        el.style[prop] = value;
+    };
+    // Redondeo a 2 decimales: evita escribir valores que difieren en milésimas.
+    const r2 = (n) => Math.round(n * 100) / 100;
+
     // Se usa la propiedad CSS "translate" (no "transform") para el scroll,
     // así no choca con las animaciones de entrada que usan transform.
     const slide = (el, x, y = 0, opacity) => {
-        el.style.translate = `${x} ${y}`;
-        if (opacity !== undefined) el.style.opacity = String(opacity);
+        css(el, "translate", `${x} ${y}`);
+        if (opacity !== undefined) css(el, "opacity", String(r2(opacity)));
     };
 
     // fachada.webp mide 1024×559; la vitrina ocupa este rectángulo (en fracciones)
@@ -122,19 +137,19 @@
     function frame(p) {
         // 1. Cielo y título de entrada
         const sky = seg(p, 0, 0.3);
-        L.cielo.style.transform = `scale(${1.12 - 0.12 * sky}) translateY(${-3 * sky}vh)`;
+        css(L.cielo, "transform", `scale(${r2(1.12 - 0.12 * sky)}) translateY(${r2(-3 * sky)}vh)`);
         // Al bajar: el título y el subtítulo salen por la izquierda…
         const outTitle = Math.pow(seg(p, 0.01, 0.12), 1.6);
         const outLead = Math.pow(seg(p, 0.025, 0.14), 1.6);
-        slide(introTitle, `${-75 * outTitle}vw`);
-        slide(introLead, `${-75 * outLead}vw`);
-        introCue.style.translate = `0 ${seg(p, 0, 0.04) * 20}px`;
-        introCue.style.visibility = p > 0.04 ? "hidden" : "visible";
-        L.intro.style.visibility = outLead >= 1 ? "hidden" : "visible";
+        slide(introTitle, `${r2(-75 * outTitle)}vw`);
+        slide(introLead, `${r2(-75 * outLead)}vw`);
+        css(introCue, "translate", `0 ${r2(seg(p, 0, 0.04) * 20)}px`);
+        css(introCue, "visibility", p > 0.04 ? "hidden" : "visible");
+        css(L.intro, "visibility", outLead >= 1 ? "hidden" : "visible");
 
         // …y los maniquíes por la derecha, cada uno a su ritmo
-        slide(castBlanco, `${55 * Math.pow(seg(p, 0.02, 0.15), 1.5)}vw`);
-        slide(castNegro, `${55 * Math.pow(seg(p, 0.01, 0.13), 1.5)}vw`);
+        slide(castBlanco, `${r2(55 * Math.pow(seg(p, 0.02, 0.15), 1.5))}vw`);
+        slide(castNegro, `${r2(55 * Math.pow(seg(p, 0.01, 0.13), 1.5))}vw`);
 
         // 2. La fachada sube y 3. hace zoom hacia la vitrina
         const rise = easeOut(seg(p, 0.06, 0.26));
@@ -143,10 +158,10 @@
         const move = easeInOut(z);
         const dx = (vw / 2 - (fl + winCx)) * move;
         const dy = (vh / 2 - (ft + winCy)) * move + (1 - rise) * vh;
-        L.facade.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
+        css(L.facade, "transform", `translate(${r2(dx)}px, ${r2(dy)}px) scale(${Math.round(scale * 1000) / 1000})`);
         const facadeGone = seg(p, 0.64, 0.7);
-        L.facade.style.opacity = String(1 - facadeGone);
-        L.facade.style.visibility = facadeGone >= 1 ? "hidden" : "visible";
+        css(L.facade, "opacity", String(r2(1 - facadeGone)));
+        css(L.facade, "visibility", facadeGone >= 1 ? "hidden" : "visible");
 
         // Texto pintado en las paredes: aparece cuando la fachada ya subió
         const paint = seg(p, 0.2, 0.3);
@@ -154,18 +169,26 @@
         // Fuera de la fachada (pantallas angostas) se retiran antes del zoom
         const wallsGone = scene.classList.contains("walls-out") ? seg(p, 0.42, 0.5) : 0;
         const wallOpacity = paint * (1 - wallsGone);
-        slide(L.wallL, `${(1 - paintE) * -6}vw`, 0, wallOpacity);
-        slide(L.wallR, `${(1 - paintE) * 6}vw`, 0, wallOpacity);
-        L.wallL.style.visibility = L.wallR.style.visibility = wallOpacity > 0.01 ? "visible" : "hidden";
+        slide(L.wallL, `${r2((1 - paintE) * -6)}vw`, 0, wallOpacity);
+        slide(L.wallR, `${r2((1 - paintE) * 6)}vw`, 0, wallOpacity);
+        const wallVis = wallOpacity > 0.01 ? "visible" : "hidden";
+        css(L.wallL, "visibility", wallVis);
+        css(L.wallR, "visibility", wallVis);
 
         // Cortinas
         const open = easeInOut(seg(p, 0.3, 0.46));
-        L.curtainL.style.transform = `translateX(${-100 * open}%)`;
-        L.curtainR.style.transform = `translateX(${100 * open}%)`;
+        // Cortinas cerradas: el interior está tapado, no hace falta pintarlo.
+        // Cortinas abiertas del todo: ellas ya no se ven.
+        css(L.interior, "visibility", open > 0 ? "visible" : "hidden");
+        const curtainVis = open < 1 ? "visible" : "hidden";
+        css(L.curtainL, "visibility", curtainVis);
+        css(L.curtainR, "visibility", curtainVis);
+        css(L.curtainL, "transform", `translateX(${r2(-100 * open)}%)`);
+        css(L.curtainR, "transform", `translateX(${r2(100 * open)}%)`);
 
         // El interior solo se ve a través del hueco de la vitrina
         if (facadeGone >= 1) {
-            L.interior.style.clipPath = "none";
+            css(L.interior, "clipPath", "none");
         } else {
             const cx = fl + winCx + dx;
             const cy = ft + winCy + dy;
@@ -173,24 +196,26 @@
             const hh = (fh * CLIP.h * scale) / 2;
             const top = Math.max(0, cy - hh), left = Math.max(0, cx - hw);
             const right = Math.max(0, vw - (cx + hw)), bottom = Math.max(0, vh - (cy + hh));
-            L.interior.style.clipPath = `inset(${top}px ${right}px ${bottom}px ${left}px)`;
+            css(L.interior, "clipPath", `inset(${r2(top)}px ${r2(right)}px ${r2(bottom)}px ${r2(left)}px)`);
         }
-        L.interiorBg.style.transform = `scale(${1.25 - 0.25 * easeOut(seg(p, 0.45, 0.82))})`;
+        css(L.interiorBg, "transform", `scale(${r2(1.25 - 0.25 * easeOut(seg(p, 0.45, 0.82)))})`);
 
         // 4. Maniquíes: cada uno llega a su propio ritmo
         const neg = easeOut(seg(p, 0.66, 0.82));
         const bla = easeOut(seg(p, 0.69, 0.85));
         const bus = easeOut(seg(p, 0.72, 0.87));
-        L.negro.style.transform = `translateX(calc(-50% - ${(1 - neg) * 70}vw))`;
-        L.blanco.style.transform = `translateX(calc(-50% + ${(1 - bla) * 70}vw))`;
-        L.busto.style.transform = `translate(-50%, ${(1 - bus) * 80}vh)`;
+        css(L.negro, "transform", `translateX(calc(-50% - ${r2((1 - neg) * 70)}vw))`);
+        css(L.blanco, "transform", `translateX(calc(-50% + ${r2((1 - bla) * 70)}vw))`);
+        css(L.busto, "transform", `translate(-50%, ${r2((1 - bus) * 80)}vh)`);
 
         // Objetos flotantes: distinta velocidad = sensación de profundidad
         const drift = seg(p, 0.66, 1);
         const show = seg(p, 0.66, 0.74);
+        const floatVis = show > 0 ? "visible" : "hidden";
         const floatIn = (el, fromY, rot, speed) => {
-            el.style.opacity = String(show);
-            el.style.transform = `translateY(${(1 - easeOut(drift)) * fromY - drift * speed}vh) rotate(${rot * (1 - drift) + rot * 0.2}deg)`;
+            css(el, "visibility", floatVis);
+            css(el, "opacity", String(r2(show)));
+            css(el, "transform", `translateY(${r2((1 - easeOut(drift)) * fromY - drift * speed)}vh) rotate(${r2(rot * (1 - drift) + rot * 0.2)}deg)`);
         };
         floatIn(L.tijeras, -60, -28, 4);
         floatIn(L.alfileres, -80, 40, 8);
@@ -198,21 +223,23 @@
         floatIn(L.hilo, 60, 20, 3);
 
         const hand = easeOut(seg(p, 0.74, 0.9));
-        L.mano.style.opacity = String(show);
-        L.mano.style.transform = `translateX(${(1 - hand) * 110}%) rotate(${(1 - hand) * -8}deg)`;
+        css(L.mano, "visibility", floatVis);
+        css(L.mano, "opacity", String(r2(show)));
+        css(L.mano, "transform", `translateX(${r2((1 - hand) * 110)}%) rotate(${r2((1 - hand) * -8)}deg)`);
 
         const rack = easeOut(seg(p, 0.7, 0.88));
-        L.percha.style.opacity = String(show);
-        L.percha.style.transform = `translateX(${(1 - rack) * -100 - seg(p, 0.88, 1) * 6}%)`;
+        css(L.percha, "visibility", floatVis);
+        css(L.percha, "opacity", String(r2(show)));
+        css(L.percha, "transform", `translateX(${r2((1 - rack) * -100 - seg(p, 0.88, 1) * 6)}%)`);
 
         // 5. Texto final: el titular entra por la izquierda, luego el texto y los botones suben
         const fTitle = easeOut(seg(p, 0.82, 0.9));
         const fLead = easeOut(seg(p, 0.85, 0.93));
         const fActions = easeOut(seg(p, 0.88, 0.96));
-        slide(finalTitle, `${(1 - fTitle) * -45}vw`, 0, fTitle);
-        slide(finalLead, `${(1 - fLead) * -30}vw`, 0, fLead);
-        slide(finalActions, 0, `${(1 - fActions) * 40}px`, fActions);
-        L.final.style.visibility = fTitle > 0.01 ? "visible" : "hidden";
+        slide(finalTitle, `${r2((1 - fTitle) * -45)}vw`, 0, fTitle);
+        slide(finalLead, `${r2((1 - fLead) * -30)}vw`, 0, fLead);
+        slide(finalActions, 0, `${r2((1 - fActions) * 40)}px`, fActions);
+        css(L.final, "visibility", fTitle > 0.01 ? "visible" : "hidden");
     }
 
     /* ------------- maniquíes de la portada: giro 3D mientras esperas ------------- */

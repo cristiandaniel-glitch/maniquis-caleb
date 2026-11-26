@@ -129,6 +129,10 @@ Abre tu navegador en:
 | `DELETE` | `/api/products/<id>` | admin | Igual que desactivar (no borra el historial) |
 | `POST` | `/api/categories` | admin | Crear categoría |
 | `GET` | `/api/messages` · `/api/claims/all` · `/api/subscribers` · `/api/stats` | admin | Bandejas y resumen del panel |
+| `PATCH` | `/api/messages/<id>` | admin | `{"status": "read" \| "unread" \| "archived"}` |
+| `PATCH` | `/api/claims/<código>` | admin | Responder reclamo: `{"status": "Atendido", "admin_response": "..."}` |
+| `GET` | `/api/admin/reviews` | admin | Todas las reseñas (visibles y ocultas) |
+| `PATCH` | `/api/reviews/<id>/visible` | admin | Ocultar / mostrar reseña: `{"is_visible": false}` |
 
 ---
 
@@ -137,5 +141,15 @@ Abre **`/admin`** (por ejemplo `http://localhost:8000/admin`) o haz clic en el e
 - Ver el inventario completo, **activar o desactivar** productos (los inactivos no se ven en la página, pero no se borran).
 - Editar nombre, categoría y **descripción** de cada producto.
 - Añadir maniquíes nuevos (aparecen al instante en el catálogo).
-- Leer los mensajes de contacto de los clientes.
-- Revisar las hojas del Libro de Reclamaciones.
+- Leer los mensajes de contacto, marcarlos como leídos o archivarlos.
+- **Responder** las hojas del Libro de Reclamaciones (estado + respuesta), con el contador de los 15 días hábiles que exige Indecopi.
+- **Ocultar reseñas** falsas u ofensivas.
+
+---
+
+## ☁️ Publicación gratuita (Vercel + Supabase)
+
+- **Base de datos:** Supabase (plan gratuito), proyecto en São Paulo. El backend entra con un usuario propio (`caleb_app`), no con el usuario maestro.
+- **Hosting:** Vercel (plan gratuito). Los archivos de `frontend/` se sirven como estáticos y la API corre como función de Python (`api/index.py`, que reutiliza el mismo `backend/`). La configuración está en `vercel.json`.
+- **Variables en Vercel** (Settings → Environment Variables): `DATABASE_URL` (Transaction pooler, puerto 6543), `DATABASE_SSLMODE=require`, `ADMIN_SALT`, `ADMIN_PASSWORD_HASH`, `SESSION_SECRET`, `TRUST_PROXY=true`, `ENABLE_HSTS=true`, `DATABASE_POOL_MIN_SIZE=0`, `DATABASE_POOL_MAX_SIZE=3`.
+- `GET /api/health` responde `"database": "ok"` cuando la conexión funciona.

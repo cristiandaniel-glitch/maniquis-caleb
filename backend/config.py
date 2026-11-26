@@ -42,11 +42,22 @@ DATABASE_SSLMODE = os.environ.get("DATABASE_SSLMODE", "require").strip()
 DATABASE_POOL_MIN_SIZE = int(os.environ.get("DATABASE_POOL_MIN_SIZE", "1"))
 DATABASE_POOL_MAX_SIZE = int(os.environ.get("DATABASE_POOL_MAX_SIZE", "5"))
 DATABASE_POOL_TIMEOUT = float(os.environ.get("DATABASE_POOL_TIMEOUT", "10"))
+# Con el "Transaction pooler" de Supabase (puerto 6543) las sentencias
+# preparadas fallan; vacío = desactivadas (funciona con ambos poolers).
+_prepare = os.environ.get("DATABASE_PREPARE_THRESHOLD", "").strip()
+DATABASE_PREPARE_THRESHOLD = int(_prepare) if _prepare.isdigit() else None
+
+# Vercel (u otro hosting "serverless") define VERCEL=1.
+ON_SERVERLESS = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
 
 # Marca local para invalidar la caché de respuestas públicas en todos los procesos.
 API_CACHE_VERSION_FILE = os.environ.get(
-    "API_CACHE_VERSION_FILE", os.path.join(BASE_DIR, "database", ".api-cache-version")
+    "API_CACHE_VERSION_FILE",
+    "/tmp/.api-cache-version" if ON_SERVERLESS else os.path.join(BASE_DIR, "database", ".api-cache-version"),
 )
+# Segundos que se reutiliza una respuesta pública. En serverless cada copia
+# del servidor tiene su propia caché, por eso se usa un tiempo corto.
+API_CACHE_TTL = float(os.environ.get("API_CACHE_TTL", "5" if ON_SERVERLESS else "30"))
 
 # ---------------------------------------------------------------- seguridad
 # Orígenes de otros dominios que pueden llamar a la API. Vacío = solo el mismo

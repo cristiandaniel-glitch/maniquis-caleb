@@ -12,9 +12,9 @@ import threading
 import time
 from typing import Callable, Dict, Optional, Tuple
 
-from backend.config import API_CACHE_VERSION_FILE
+from backend.config import API_CACHE_TTL, API_CACHE_VERSION_FILE
 
-TTL_SECONDS = 30.0
+TTL_SECONDS = API_CACHE_TTL
 MAX_ENTRIES = 256
 
 # clave -> (guardado_en, versión, status, json, json_gzip)
