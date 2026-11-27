@@ -24,9 +24,9 @@ maniquis-caleb/
 │   │   └── cache.py          # Caché corta de respuestas públicas
 │   ├── routes/               # Controladores de la API (un archivo por tema)
 │   │   ├── products.py  categories.py  reviews.py  claims.py
-│   │   ├── messages.py  newsletter.py  stats.py  legal.py  auth.py  health.py
+│   │   ├── messages.py  stats.py  legal.py  auth.py  health.py
 │   ├── models/               # Consultas y validación de cada tipo de registro
-│   │   ├── product.py  category.py  review.py  claim.py  message.py  subscriber.py
+│   │   ├── product.py  category.py  review.py  claim.py  message.py
 │   └── core/                 # Lógica transversal
 │       ├── auth.py           # Contraseña PBKDF2, tokens firmados, bloqueo anti fuerza bruta
 │       ├── validation.py     # Limpieza y conversión de datos (errores 400 claros)
@@ -119,7 +119,7 @@ Abre tu navegador en:
 | `GET` | `/api/reviews` · `POST` | público | Listar / publicar reseñas |
 | `POST` | `/api/claims` | público | Registrar hoja de reclamación |
 | `GET` | `/api/claims/<código>` | público | Estado del reclamo (sin datos personales) |
-| `POST` | `/api/contact` · `/api/subscribe` | público | Contacto y boletín |
+| `POST` | `/api/contact` | público | Contacto |
 | `GET` | `/api/legal` | público | Datos fiscales, ubicación y políticas |
 | `POST` | `/api/admin/login` | público | Ingreso al panel (devuelve token de 4 h) |
 | `GET` | `/api/admin/products` | admin | Inventario completo (activos e inactivos) |
@@ -128,7 +128,7 @@ Abre tu navegador en:
 | `PATCH` | `/api/products/<id>/active` | admin | Activar / desactivar: `{"is_active": true}` |
 | `DELETE` | `/api/products/<id>` | admin | Igual que desactivar (no borra el historial) |
 | `POST` | `/api/categories` | admin | Crear categoría |
-| `GET` | `/api/messages` · `/api/claims/all` · `/api/subscribers` · `/api/stats` | admin | Bandejas y resumen del panel |
+| `GET` | `/api/messages` · `/api/claims/all` · `/api/stats` | admin | Bandejas y resumen del panel |
 | `PATCH` | `/api/messages/<id>` | admin | `{"status": "read" \| "unread" \| "archived"}` |
 | `PATCH` | `/api/claims/<código>` | admin | Responder reclamo: `{"status": "Atendido", "admin_response": "..."}` |
 | `GET` | `/api/admin/reviews` | admin | Todas las reseñas (visibles y ocultas) |

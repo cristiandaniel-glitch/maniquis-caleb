@@ -30,8 +30,6 @@ TABLES: Tuple[Tuple[str, Tuple[str, ...], Tuple[str, ...]], ...] = (
     ("products", ("id", "category_id", "name", "slug", "sku", "description", "material", "color", "dimensions", "price", "stock", "image_url", "is_featured", "is_active", "created_at", "updated_at"), ("is_featured", "is_active")),
     ("claims_book", ("id", "claim_code", "claim_type", "full_name", "doc_type", "doc_number", "email", "phone", "address", "is_minor", "guardian_name", "contracted_good", "amount_claimed", "good_description", "claim_description", "consumer_request", "status", "admin_response", "response_date", "created_at", "updated_at"), ("is_minor",)),
     ("contact_messages", ("id", "name", "email", "phone", "subject", "message", "status", "ip_address", "created_at"), ()),
-    ("subscribers", ("id", "email", "status", "created_at"), ()),
-    ("security_logs", ("id", "action", "detail", "ip_address", "user_agent", "created_at"), ()),
     ("reviews", ("id", "name", "boutique", "city", "product_model", "rating", "comment", "is_verified", "created_at"), ("is_verified",)),
 )
 

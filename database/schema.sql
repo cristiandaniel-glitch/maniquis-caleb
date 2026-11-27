@@ -86,24 +86,6 @@ CREATE TABLE IF NOT EXISTS contact_messages (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- 5. Tabla de Suscriptores al Boletín (Newsletter)
-CREATE TABLE IF NOT EXISTS subscribers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT NOT NULL UNIQUE,
-    status TEXT DEFAULT 'active' CHECK(status IN ('active', 'unsubscribed')),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
--- 6. Tabla de Auditoría / Logs de Seguridad del Sistema
-CREATE TABLE IF NOT EXISTS security_logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    action TEXT NOT NULL,
-    detail TEXT,
-    ip_address TEXT,
-    user_agent TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
 -- ==============================================================================
 -- ÍNDICES PARA RENDIMIENTO ÓPTIMO
 -- ==============================================================================
@@ -113,4 +95,3 @@ CREATE INDEX IF NOT EXISTS idx_products_featured ON products(is_featured);
 CREATE INDEX IF NOT EXISTS idx_claims_code ON claims_book(claim_code);
 CREATE INDEX IF NOT EXISTS idx_claims_status ON claims_book(status);
 CREATE INDEX IF NOT EXISTS idx_messages_status ON contact_messages(status);
-CREATE INDEX IF NOT EXISTS idx_subscribers_email ON subscribers(email);

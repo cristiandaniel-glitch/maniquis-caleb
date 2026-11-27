@@ -11,7 +11,6 @@ from backend.routes import (  # noqa: F401
     health,
     legal,
     messages,
-    newsletter,
     products,
     reviews,
     stats,

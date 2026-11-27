@@ -14,7 +14,6 @@ def summary(req: Request):
              (SELECT COUNT(*) FROM contact_messages)                              AS messages_total,
              (SELECT COUNT(*) FROM contact_messages WHERE status = 'unread')      AS messages_unread,
              (SELECT COUNT(*) FROM claims_book)                                   AS claims_total,
-             (SELECT COUNT(*) FROM claims_book WHERE status = 'Pendiente')        AS claims_pending,
-             (SELECT COUNT(*) FROM subscribers WHERE status = 'active')           AS subscribers_total"""
+             (SELECT COUNT(*) FROM claims_book WHERE status = 'Pendiente')        AS claims_pending"""
     )
     return ok(row)

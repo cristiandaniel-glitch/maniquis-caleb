@@ -33,8 +33,6 @@ _REQUIRED_TABLES = (
     "products",
     "claims_book",
     "contact_messages",
-    "subscribers",
-    "security_logs",
     "reviews",
     "login_attempts",
 )
